@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Điều Khiển Tổng Quan - Viện Quản Lý Chất Lượng & Khảo Thí</title>
+    <!-- Google Fonts: Be Vietnam Pro -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Chart.js (Offline first, CDN fallback) -->
+    <script src="chart.umd.min.js"></script>
+    <!-- PapaParse (Offline first, CDN fallback) -->
+    <script src="papaparse.min.js"></script>
+    <script>
+        if (typeof Chart === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+        }
+        if (typeof Papa === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>');
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-index3">
+    <div class="app-layout">
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div class="header-text">
+                    <h2 class="org-name">Viện Quản lý chất lượng và Khảo thí</h2>
+                    <p class="system-name">HỆ THỐNG QUẢN TRỊ TRANG CHỦ</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active">
+                        <a href="index3.html" class="nav-link">
+                            <i class="fa-solid fa-chart-pie nav-icon"></i>
+                            <span class="nav-label">Tổng quan hệ thống</span>
+                            <span class="nav-badge green-badge">Trang 3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index.html" class="nav-link">
+                            <i class="fa-solid fa-comments nav-icon"></i>
+                            <span class="nav-label">Trang 1: Thống kê Tin nhắn</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index2.html" class="nav-link">
+                            <i class="fa-solid fa-money-bill-trend-up nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Trang 2: Thu - Chi & Quỹ</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#main-chart-section" class="nav-link">
+                            <i class="fa-solid fa-newspaper nav-icon"></i>
+                            <span class="nav-label">Quản lý Bài viết (CMS)</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#mini-charts-section" class="nav-link">
+                            <i class="fa-solid fa-bullhorn nav-icon"></i>
+                            <span class="nav-label">Quản lý Thông báo</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#quick-actions" class="nav-link">
+                            <i class="fa-solid fa-users-gear nav-icon"></i>
+                            <span class="nav-label">Cán bộ & Phân quyền</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#sheet-config-modal" class="nav-link" id="btnOpenSheetModal">
+                            <i class="fa-solid fa-sliders nav-icon"></i>
+                            <span class="nav-label">Cấu hình & Bố cục</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-avatar-box">
+                    <img src="https://ui-avatars.com/api/?name=Nguyen+The+Anh&background=10b981&color=fff&size=80" alt="Avatar" class="user-avatar">
+                </div>
+                <div class="user-details">
+                    <div class="user-fullname">Nguyễn Thế Anh</div>
+                    <div class="user-role-label">Admin (Quản trị viên toàn quyền)</div>
+                </div>
+                <button class="logout-icon-btn" title="Đăng xuất" onclick="alert('Đã đăng xuất phiên làm việc.');">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ================= MAIN CONTENT ================= -->
+        <main class="main-viewport">
+            <!-- ================= PRINTABLE HEADER (Chuẩn như ảnh xuất PDF) ================= -->
+            <div class="print-only-header">
+                <div class="print-header-top">
+                    <div class="print-org-left">
+                        <strong>ĐẠI HỌC QUỐC GIA HÀ NỘI</strong><br>
+                        <span>Viện Quản lý chất lượng và Khảo thí | VNU-IQA</span>
+                    </div>
+                    <div class="print-org-right">
+                        <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                        <span>Độc lập - Tự do - Hạnh phúc</span>
+                    </div>
+                </div>
+                <h2 class="print-report-title">BÁO CÁO TỔNG QUAN HOẠT ĐỘNG VÀ XUẤT BẢN NỘI DUNG THEO THÁNG</h2>
+                <p class="print-report-subtitle">
+                    Nguồn dữ liệu: Cơ Sở Dữ Liệu Thực Tế Viện Quản Lý Chất Lượng Và Khảo Thí &bull; Ngày xuất báo cáo: <span id="printReportDate">19/10/2026 lúc 09:52</span>
+                </p>
+                <hr class="print-divider">
+            </div>
+
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-sidebar-toggle" id="mobileToggleSidebar" aria-label="Toggle menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Bảng Điều Khiển Tổng Quan</h1>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="live-clock-pill">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="liveClock">Thứ hai, 05/10/2026</span>
+                    </div>
+
+                    <div class="user-pill-tag">
+                        <i class="fa-regular fa-circle-user"></i>
+                        <span class="user-meta">Nguyễn Thế Anh (theanhthtc@vnu.edu.vn)</span>
+                        <span class="admin-badge">Admin</span>
+                    </div>
+
+                    <button class="btn-topbar btn-topbar-refresh" id="topRefreshBtn" title="Làm mới & đồng bộ dữ liệu mới nhất từ Google Sheet">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Làm mới</span>
+                    </button>
+
+                    <button class="btn-topbar outline-rose" onclick="alert('Đã đăng xuất hệ thống.');">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Đăng xuất</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- DASHBOARD BODY -->
+            <div class="dashboard-body">
+                <!-- ================= 8 KPI CARDS (2 HÀNG X 4 CỘT) ================= -->
+                <div class="stats-grid-4">
+                    <!-- Thẻ 1: ĐÃ XUẤT BẢN -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">ĐÃ XUẤT BẢN</span>
+                            <div class="card-metric text-emerald" id="kpiPostsValue">0</div>
+                            <div class="card-sublabel" id="kpiPostsSublabel">Bài viết đã đăng</div>
+                            <div class="card-footer-info" id="kpiPostsSub">(Tổng cộng: 43)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-green">
+                            <i class="fa-solid fa-file-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 2: THÔNG BÁO -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">THÔNG BÁO</span>
+                            <div class="card-metric" style="color: #8b5cf6;" id="kpiAnnounceValue">0</div>
+                            <div class="card-sublabel" id="kpiAnnounceSublabel">Thông báo ban hành</div>
+                            <div class="card-footer-info" id="kpiAnnounceSub">(Tổng cộng: 4)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-purple">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 3: CẦN XÉT DUYỆT -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">CẦN XÉT DUYỆT</span>
+                            <div class="card-metric text-warning" id="kpiPendingValue">0</div>
+                            <div class="card-sublabel" id="kpiPendingSublabel">Bài viết chờ đăng</div>
+                            <div class="card-footer-info" id="kpiPendingSub">(Đang chờ: 0)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-amber">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 4: TRANG & PHÂN HỆ -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">TRANG & PHÂN HỆ</span>
+                            <div class="card-metric text-cyan-metric" id="kpiPagesValue">5</div>
+                            <div class="card-sublabel" id="kpiPagesSublabel">Trang/tháng</div>
+                            <div class="card-footer-info" id="kpiPagesSub">(Tổng cộng: 9 trang)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-cyan">
+                            <i class="fa-solid fa-cubes"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 5: NHÂN SỰ -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">NHÂN SỰ</span>
+                            <div class="card-metric" style="color: #ec4899;" id="kpiStaffValue">0</div>
+                            <div class="card-sublabel" id="kpiStaffSublabel">Cán bộ & Quản trị</div>
+                            <div class="card-footer-info" id="kpiStaffSub">(Tổng: 17 | Ad: 6 - Bvt: 5 - Nv: 6)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-pink">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 6: DANH MỤC BÀI VIẾT -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">DANH MỤC BÀI VIẾT</span>
+                            <div class="card-metric" style="color: #ea580c;" id="kpiCatValue">5</div>
+                            <div class="card-sublabel" id="kpiCatSublabel">Danh mục bài viết/tháng</div>
+                            <div class="card-footer-info" id="kpiCatSub">(Tổng cộng: 22 danh mục)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-amber">
+                            <i class="fa-solid fa-folder-closed"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 7: THƯ VIỆN MEDIA -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">THƯ VIỆN MEDIA</span>
+                            <div class="card-metric" style="color: #0d9488;" id="kpiMediaValue">1</div>
+                            <div class="card-sublabel" id="kpiMediaSublabel">Ảnh / Kho Media</div>
+                            <div class="card-footer-info" id="kpiMediaSub">(Tổng kho: 211 tệp)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-teal">
+                            <i class="fa-solid fa-images"></i>
+                        </div>
+                    </div>
+
+                    <!-- Thẻ 8: BÁO CÁO -->
+                    <div class="stat-card">
+                        <div class="stat-card-main">
+                            <span class="card-caption">BÁO CÁO</span>
+                            <div class="card-metric text-rose-sub" id="kpiReportValue">0</div>
+                            <div class="card-sublabel" id="kpiReportSublabel">Báo cáo/tháng</div>
+                            <div class="card-footer-info" id="kpiReportSub">(Tổng cộng: 1)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-rose">
+                            <i class="fa-solid fa-file-contract"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= FILTER & CONTROL BAR ================= -->
+                <div class="filter-toolbar-card">
+                    <div class="toolbar-title-group">
+                        <div class="toolbar-main-title">
+                            <i class="fa-solid fa-chart-column"></i>
+                            <span>Hệ Thống Sơ Đồ Biểu Đồ Thống Kê Tổng Quan</span>
+                        </div>
+                        <span class="live-status-badge" id="liveStatusBadge">
+                            <span class="pulse-dot"></span>
+                            <span id="liveStatusText">Dữ liệu thực tế thời gian thực</span>
+                        </span>
+                    </div>
+
+                    <div class="toolbar-actions-group">
+                        <div class="select-wrapper">
+                            <label for="yearFilter">Năm:</label>
+                            <select id="yearFilter" class="custom-select">
+                                <option value="2026" selected>Năm 2026 (Năm học hiện tại)</option>
+                                <option value="2025">Năm 2025</option>
+                                <option value="2027">Năm 2027</option>
+                                <option value="2028">Năm 2028</option>
+                            </select>
+                        </div>
+
+                        <div class="select-wrapper">
+                            <label for="scopeFilter">Phạm vi:</label>
+                            <select id="scopeFilter" class="custom-select">
+                                <option value="all" selected>12 tháng</option>
+                                <option value="q1">Quý 1 (T1 - T3)</option>
+                                <option value="q2">Quý 2 (T4 - T6)</option>
+                                <option value="q3">Quý 3 (T7 - T9)</option>
+                                <option value="q4">Quý 4 (T10 - T12)</option>
+                                <option value="h1">6 tháng đầu năm (T1 - T6)</option>
+                                <option value="h2">6 tháng cuối năm (T7 - T12)</option>
+                            </select>
+                        </div>
+
+                        <button id="btnRefreshSheet" class="btn-action btn-refresh" title="Đồng bộ trực tiếp với Google Sheet">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            <span>Làm mới sơ đồ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ================= MAIN CHART SECTION ================= -->
+                <section class="chart-section-card" id="main-chart-section">
+                    <div class="chart-card-header">
+                        <div>
+                            <h2 class="chart-title" id="mainChartTitle">Sơ Đồ Hoạt Động Xuất Bản Theo Tháng (Bài viết, Thông báo, Báo cáo)</h2>
+                            <p class="chart-subtitle" id="mainChartSubtitle">Thống kê chi tiết: Bài viết đã đăng/tháng, Thông báo/tháng và Báo cáo ban hành/tháng thực tế qua các tháng trong năm</p>
+                            <div class="chart-legend-pills">
+                                <span class="legend-pill">
+                                    <span class="color-dot bg-emerald"></span>
+                                    <span id="legMainPosts">Bài viết đã đăng: 43 bài</span>
+                                </span>
+                                <span class="legend-pill">
+                                    <span class="color-dot" style="background-color: #0284c7;"></span>
+                                    <span id="legMainAnnounce">Thông báo ban hành: 4 thông báo</span>
+                                </span>
+                                <span class="legend-pill">
+                                    <span class="color-dot bg-amber"></span>
+                                    <span id="legMainReports">Báo cáo ban hành: 1 báo cáo</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="btn-group-toggle">
+                            <button class="btn-toggle active" id="btnChartBar">
+                                <i class="fa-solid fa-chart-column"></i>
+                                <span>Dạng Cột</span>
+                            </button>
+                            <button class="btn-toggle" id="btnChartLine">
+                                <i class="fa-solid fa-chart-line"></i>
+                                <span>Dạng Đường</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="main-chart-wrapper">
+                        <canvas id="mainActivityChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- ================= 6 MINI CHARTS GRID (2 CỘT X 3 HÀNG) ================= -->
+                <section class="mini-charts-grid" id="mini-charts-section">
+                    <!-- Mini Chart 1: Bài viết đã đăng/Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Bài viết đã đăng/Tháng</h3>
+                                <p class="mini-subtitle">Số lượng bài viết đã xuất bản thực tế qua các tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-emerald" id="miniBadge1">Tháng 10: 0 bài viết</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart1"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter1"><i class="fa-solid fa-circle-check text-emerald"></i> 43 Bài viết đã xuất bản</span>
+                            <span><i class="fa-solid fa-clock"></i> Cập nhật theo thời gian thực</span>
+                            <span><i class="fa-solid fa-database"></i> Dữ liệu đồng bộ</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Chart 2: Tần Suất Tải Ảnh Media / Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Tần Suất Tải Ảnh Media / Tháng</h3>
+                                <p class="mini-subtitle">Số lượng hình ảnh tải lên kho media thực tế theo từng tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-purple" id="miniBadge2">THÁNG 10: 1 Ảnh</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart2"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter2"><i class="fa-solid fa-images" style="color: #8b5cf6;"></i> 211 Ảnh trong kho media</span>
+                            <span><i class="fa-solid fa-clock"></i> Cập nhật theo thời gian thực</span>
+                            <span><i class="fa-solid fa-hard-drive"></i> Dung lượng tối ưu</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Chart 3: Thông báo/Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Thông báo/Tháng</h3>
+                                <p class="mini-subtitle">Số lượng thông báo ban hành thực tế qua các tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-sky" id="miniBadge3">Tháng 10: 0 Thông báo</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart3"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter3"><i class="fa-solid fa-bullhorn" style="color: #0284c7;"></i> 4 Thông báo ban hành</span>
+                            <span><i class="fa-solid fa-clock"></i> Cập nhật theo thời gian thực</span>
+                            <span><i class="fa-solid fa-database"></i> Dữ liệu đồng bộ</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Chart 4: Báo cáo/Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Báo cáo/Tháng</h3>
+                                <p class="mini-subtitle">Số lượng báo cáo thực tế qua các tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-rose" id="miniBadge4">Tháng 10: 0 Báo cáo</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart4"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter4"><i class="fa-solid fa-file-contract" style="color: #e11d48;"></i> 1 Báo cáo ban hành</span>
+                            <span><i class="fa-solid fa-clock"></i> Cập nhật theo thời gian thực</span>
+                            <span><i class="fa-solid fa-database"></i> Dữ liệu đồng bộ</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Chart 5: Trang/Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Trang/Tháng</h3>
+                                <p class="mini-subtitle">Số lượng trang và phân hệ động tạo mới thực tế qua các tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-teal" id="miniBadge5">Tháng 10: 5 Trang</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart5"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter5"><i class="fa-solid fa-cubes" style="color: #0d9488;"></i> 9 Trang & Phân hệ</span>
+                            <span><i class="fa-solid fa-clock"></i> Cập nhật theo thời gian thực</span>
+                            <span><i class="fa-solid fa-network-wired"></i> Dữ liệu phân hệ động</span>
+                        </div>
+                    </div>
+
+                    <!-- Mini Chart 6: Danh mục bài viết/Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h3 class="mini-title">Danh mục bài viết/Tháng</h3>
+                                <p class="mini-subtitle">Số lượng danh mục bài viết tạo mới thực tế theo từng tháng</p>
+                            </div>
+                            <span class="mini-badge-tag badge-violet" id="miniBadge6">Tháng 10: 5 Danh mục</span>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="miniChart6"></canvas>
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span id="miniFooter6"><i class="fa-solid fa-folder-tree" style="color: #7c3aed;"></i> 22 Danh mục bài viết</span>
+                            <span><i class="fa-solid fa-sitemap"></i> Cấu trúc chuyên mục động</span>
+                            <span><i class="fa-solid fa-compass"></i> Đồng bộ Menu điều hướng</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= BẢNG CHỈ SỐ CHI TIẾT 12 THÁNG ================= -->
+                <section class="table-section-card" id="table-section">
+                    <div class="table-header-box">
+                        <div>
+                            <h2 class="table-card-title" id="tableCardTitle">Bảng Chỉ Số Chi Tiết 12 Tháng</h2>
+                            <p class="table-card-subtitle" id="tableCardSubtitle">Tổng hợp cụ thể bài viết đã đăng, thông báo, báo cáo, trang, danh mục, bài chờ đăng và ảnh media theo từng tháng (Dữ liệu thực tế)</p>
+                        </div>
+                        <div class="table-actions">
+                            <button class="btn-print-report" id="btnPrintReport">
+                                <i class="fa-solid fa-print"></i>
+                                <span>In báo cáo</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Tháng</th>
+                                    <th>Bài viết đã đăng</th>
+                                    <th>Thông báo</th>
+                                    <th>Báo cáo</th>
+                                    <th>Trang</th>
+                                    <th>Danh mục</th>
+                                    <th>Bài viết chờ đăng</th>
+                                    <th>Ảnh Media tải lên</th>
+                                    <th>Tỷ lệ xuất bản</th>
+                                    <th>Đánh giá hoạt động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailedTableBody">
+                                <!-- Tạo tự động từ app3.js -->
+                            </tbody>
+                            <tfoot id="detailedTableFoot">
+                                <!-- Dòng tổng kết tự động -->
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- ================= KHỐI KÝ TÊN (TRANG 3: 2 CỘT) ================= -->
+                    <div class="print-only-signatures">
+                        <div class="sign-box">
+                            <div class="sign-box-title">NGƯỜI LẬP</div>
+                            <div class="sign-hint">(Ký, ghi rõ họ tên)</div>
+                            <div class="sign-space"></div>
+                            <div class="sign-name">Nguyễn Thế Anh</div>
+                        </div>
+                        <div class="sign-box">
+                            <div class="sign-box-title">TRƯỞNG PHÒNG PHỤ TRÁCH</div>
+                            <div class="sign-hint">(Ký, ghi rõ họ tên)</div>
+                            <div class="sign-space"></div>
+                            <div class="sign-name">....................................................</div>
+                        </div>
+                    </div>
+
+                    <div class="print-footer-note">
+                        * Báo cáo được trích xuất tự động từ Hệ thống Quản trị & Cơ sở dữ liệu Thực tế Viện Quản lý Chất lượng và Khảo thí - VNU-IQA
+                    </div>
+                </section>
+
+                <!-- ================= THAO TÁC NHANH (FOOTER ACTIONS) ================= -->
+                <div class="quick-actions-bar" id="quick-actions">
+                    <div class="quick-action-title">Thao Tác Nhanh</div>
+                    <div class="action-buttons-wrap">
+                        <button class="btn-quick-emerald" id="btnQuickMenu">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm mục Menu trang chủ</span>
+                        </button>
+                        <button class="btn-quick-emerald" id="btnQuickPost">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Soạn bài viết mới</span>
+                        </button>
+                        <button class="btn-quick-emerald" id="btnQuickAnnounce">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Soạn thông báo trang chủ</span>
+                        </button>
+                        <button class="btn-quick-emerald" id="btnQuickModule">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm phân hệ dịch vụ mới</span>
+                        </button>
+                        <button class="btn-quick-light" id="btnQuickUser">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm cán bộ & Phân quyền</span>
+                        </button>
+                        <button class="btn-quick-light" id="btnQuickMedia">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Tải ảnh thư viện</span>
+                        </button>
+                        <button class="btn-quick-light" id="btnQuickCategory">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm danh mục</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Google Sheet Reference Banner -->
+                <div class="google-guide-banner">
+                    <div>
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Đồng bộ thời gian thực từ Google Sheet: </span>
+                        <strong id="bannerSheetInfo">1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw (Trang tính Tổng quan)</strong>
+                    </div>
+                    <a href="https://docs.google.com/spreadsheets/d/1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw/edit?gid=0#gid=0" target="_blank" class="btn-guide" id="bottomSheetLink">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Google Sheet gốc
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL THAO TÁC NHANH ================= -->
+    <div class="modal-backdrop" id="quickActionModal">
+        <div class="modal-dialog">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="quickActionModalTitle" style="font-size: 15px; font-weight: 700; color: #0f172a;">Tiêu đề thao tác</h3>
+                <button class="modal-close-btn" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p id="quickActionModalDesc" style="font-size: 12.5px; color: #64748b; margin-bottom: 16px;">Mô tả thao tác...</p>
+                <form id="quickActionForm" onsubmit="event.preventDefault(); showToast('Thao tác đã được ghi nhận vào hệ thống!', 'success'); closeAllModals();">
+                    <div style="margin-bottom: 14px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Tiêu đề / Tên đối tượng:</label>
+                        <input type="text" required placeholder="Nhập tên đối tượng..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 12.5px; outline: none;">
+                    </div>
+                    <div style="margin-bottom: 14px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Nội dung / Ghi chú chi tiết:</label>
+                        <textarea rows="3" placeholder="Nhập thông tin mô tả chi tiết..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 12.5px; outline: none;"></textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                        <button type="button" class="modal-close-btn" style="padding: 7px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Đóng</button>
+                        <button type="submit" style="padding: 7px 18px; border: 1px solid #065f46; background: #065f46; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Xác nhận lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL CẤU HÌNH GOOGLE SHEET ================= -->
+    <div class="modal-backdrop" id="sheetConfigModal">
+        <div class="modal-dialog modal-dialog-large">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-sliders" style="color: #065f46;"></i>
+                    Cấu hình kết nối Google Sheet (Trang 3)
+                </h3>
+                <button class="modal-close-btn" style="background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+                    Trang đang đồng bộ dữ liệu trực tiếp với file Google Sheet xuất bản của Viện Quản lý chất lượng & Khảo thí:
+                </p>
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">URL Google Sheet hiện tại:</label>
+                    <input type="text" id="sheetUrlInput" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 12px; outline: none;">
+                </div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #475569; margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #0f172a;"><i class="fa-solid fa-circle-check text-emerald"></i> Trạng thái đồng bộ:</div>
+                    <div id="modalSheetIdText">• <strong>Sheet ID:</strong> 1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw</div>
+                    <div id="modalSheetGidText">• <strong>Tab GID:</strong> 0 (Trang tính dữ liệu năm 2025 - 2028)</div>
+                    <div>• <strong>Chế độ dự phòng:</strong> Đã lưu trữ bộ nhớ đệm nội bộ (Offline Ready)</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <a href="https://docs.google.com/spreadsheets/d/1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw/edit?gid=0#gid=0" target="_blank" id="modalSheetLink" style="color: #0284c7; font-size: 12px; text-decoration: none; font-weight: 600;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở trên Google Drive
+                    </a>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="modal-close-btn" style="padding: 7px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Đóng</button>
+                        <button type="button" id="btnSaveSheetUrl" style="padding: 7px 18px; border: 1px solid #065f46; background: #065f46; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Cập nhật & Đồng bộ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic scripts -->
+    <script src="sheet3_data.js"></script>
+    <script src="app3.js"></script>
+</body>
+</html>
