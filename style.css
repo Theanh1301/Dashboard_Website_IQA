@@ -521,6 +521,19 @@ html, body {
     cursor: not-allowed;
 }
 
+.btn-page.active {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border-color: #059669 !important;
+    font-weight: 700;
+}
+
+.pagination-page-numbers {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .page-current-indicator {
     font-size: 12px;
     font-weight: 700;
