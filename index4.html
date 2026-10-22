@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soạn Thảo Văn Bản & Xuất Biểu Mẫu Báo Cáo - Viện Quản Lý Chất Lượng & Khảo Thí</title>
+    <!-- Google Fonts: Be Vietnam Pro & Times New Roman -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-index4">
+    <div class="app-layout">
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <div class="header-text">
+                    <h2 class="org-name">Viện Quản lý chất lượng và Khảo thí</h2>
+                    <p class="system-name">HỆ THỐNG SOẠN THẢO VĂN BẢN</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active">
+                        <a href="index4.html" class="nav-link">
+                            <i class="fa-solid fa-file-pen nav-icon"></i>
+                            <span class="nav-label">Soạn Thảo & In Báo Cáo</span>
+                            <span class="nav-badge green-badge">Trang 4</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index.html" class="nav-link">
+                            <i class="fa-solid fa-comments nav-icon"></i>
+                            <span class="nav-label">Trang 1: Thống kê Tin nhắn</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index2.html" class="nav-link">
+                            <i class="fa-solid fa-money-bill-trend-up nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Trang 2: Thu - Chi & Quỹ</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index3.html" class="nav-link">
+                            <i class="fa-solid fa-chart-pie nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Trang 3: Tổng quan CMS</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#metadataSection" class="nav-link" id="navMetadataLink">
+                            <i class="fa-solid fa-sliders nav-icon"></i>
+                            <span class="nav-label">Cấu hình Tiêu đề & Người ký</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#editorSection" class="nav-link" id="navEditorLink">
+                            <i class="fa-solid fa-file-word nav-icon"></i>
+                            <span class="nav-label">Khu vực Soạn thảo (Word)</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#previewSection" class="nav-link" id="navPreviewLink">
+                            <i class="fa-solid fa-eye nav-icon"></i>
+                            <span class="nav-label">Xem trước Biểu mẫu A4</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-avatar-box">
+                    <img src="https://ui-avatars.com/api/?name=Nguyen+The+Anh&background=10b981&color=fff&size=80" alt="Avatar" class="user-avatar">
+                </div>
+                <div class="user-details">
+                    <div class="user-fullname" id="sidebarUserFullName">Nguyễn Thế Anh</div>
+                    <div class="user-role-label">Cán bộ lập báo cáo</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================= MAIN CONTENT ================= -->
+        <main class="main-viewport">
+            <!-- TOPBAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-sidebar-toggle" id="mobileToggleSidebar" aria-label="Toggle menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Soạn Thảo Văn Bản & Ghép Biểu Mẫu Báo Cáo Hành Chính</h1>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="live-clock-pill">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="liveClock">Đang tải...</span>
+                    </div>
+
+                    <div class="user-pill-tag">
+                        <i class="fa-regular fa-circle-user"></i>
+                        <span class="user-meta" id="topbarUserMeta">Người dùng: Nguyễn Thế Anh</span>
+                        <span class="admin-badge">Trang 4</span>
+                    </div>
+
+                    <button class="btn-topbar outline-emerald" id="topBtnSaveDraft" title="Lưu toàn bộ nội dung báo cáo vào bộ nhớ trình duyệt">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Lưu Nháp</span>
+                    </button>
+
+                    <button class="btn-topbar btn-topbar-refresh" id="topBtnPrint" title="Ghép nội dung vào biểu mẫu chuẩn và mở hộp thoại in A4 / xuất PDF">
+                        <i class="fa-solid fa-print"></i>
+                        <span>In Báo Cáo</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- DASHBOARD BODY CONTAINER -->
+            <div class="dashboard-body">
+
+                <!-- THANH CHUYỂN ĐỔI CHẾ ĐỘ & THAO TÁC NHANH -->
+                <div class="view-mode-bar">
+                    <div class="view-mode-tabs">
+                        <button type="button" class="mode-tab-btn active" id="tabEditorMode">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Chế độ Soạn thảo (Word Editor)</span>
+                        </button>
+                        <button type="button" class="mode-tab-btn" id="tabPreviewMode">
+                            <i class="fa-solid fa-file-circle-check"></i>
+                            <span>Xem trước Biểu mẫu Chuẩn A4</span>
+                        </button>
+                    </div>
+
+                    <div class="editor-quick-actions">
+                        <button type="button" class="btn-editor-action btn-template-select" id="btnOpenTemplates">
+                            <i class="fa-solid fa-wand-magic-sparkles text-emerald"></i>
+                            <span>Mẫu Báo Cáo Chuẩn</span>
+                        </button>
+                        <button type="button" class="btn-editor-action btn-template-select" id="btnClearEditor" title="Xóa toàn bộ nội dung để soạn mới">
+                            <i class="fa-solid fa-trash-can text-rose"></i>
+                            <span>Xóa Trắng</span>
+                        </button>
+                        <button type="button" class="btn-editor-action btn-word-export" id="btnExportWordFile" title="Tải về file Microsoft Word (.doc) hoàn chỉnh">
+                            <i class="fa-solid fa-file-word"></i>
+                            <span>Xuất File Word (.doc)</span>
+                        </button>
+                        <button type="button" class="btn-editor-action btn-print-official" id="btnTriggerPrint" title="In trực tiếp ra máy in hoặc lưu thành file PDF">
+                            <i class="fa-solid fa-print"></i>
+                            <span>In / Xuất PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- THẺ CẤU HÌNH THÔNG TIN BIỂU MẪU BÁO CÁO & NGƯỜI KÝ -->
+                <section class="report-metadata-card" id="metadataSection">
+                    <div class="meta-header-toggle" id="metaToggleHeader">
+                        <div class="meta-title">
+                            <i class="fa-solid fa-sliders text-emerald"></i>
+                            <span>Thiết Lập Thông Tin Báo Cáo, Tiêu Đề, Người Lập & Phụ Trách Phòng</span>
+                            <span class="pill-badge pill-emerald-subtle" style="font-size: 10.5px; margin-left: 8px;">
+                                Tự động ghép vào bản in
+                            </span>
+                        </div>
+                        <button type="button" class="meta-toggle-btn" id="btnToggleMetaForm" title="Thu gọn / Mở rộng">
+                            <i class="fa-solid fa-chevron-up" id="metaToggleIcon"></i>
+                        </button>
+                    </div>
+
+                    <div class="meta-grid-form" id="metaFormBody">
+                        <!-- Hàng 1: Cơ quan & Quốc hiệu -->
+                        <div class="form-group">
+                            <label class="form-label" for="cfgOrgParent">Cơ quan chủ quản</label>
+                            <input type="text" id="cfgOrgParent" class="form-control" value="ĐẠI HỌC QUỐC GIA HÀ NỘI">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="cfgOrgName">Đơn vị ban hành báo cáo</label>
+                            <input type="text" id="cfgOrgName" class="form-control" value="VIỆN QUẢN LÝ CHẤT LƯỢNG VÀ KHẢO THÍ">
+                        </div>
+
+
+                        <div class="form-group">
+                            <label class="form-label" for="cfgDocDate">Địa điểm & Ngày tháng ban hành</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" id="cfgDocDate" class="form-control" value="Hà Nội, ngày 22 tháng 10 năm 2026" style="flex: 1;">
+                                <label class="checkbox-label" style="white-space: nowrap;">
+                                    <input type="checkbox" id="chkAutoDateNow" checked>
+                                    <span>Tự động</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Hàng 2: Tiêu đề báo cáo & Phụ đề -->
+                        <div class="form-group meta-col-full">
+                            <label class="form-label" for="cfgReportTitle">
+                                Tiêu đề báo cáo (CHỮ IN HOA ĐẬM) <span class="required">*</span>
+                            </label>
+                            <input type="text" id="cfgReportTitle" class="form-control" style="font-weight: 700; font-size: 14px;" value="BÁO CÁO KẾT QUẢ TRIỂN KHAI VÀ QUẢN TRỊ NỘI DUNG HỆ THỐNG NĂM 2026" placeholder="Nhập tiêu đề báo cáo...">
+                            <div class="sig-presets-box" style="margin-top: 6px;">
+                                <span class="preset-label">Mẫu tiêu đề gợi ý:</span>
+                                <div class="preset-pills">
+                                    <button type="button" class="preset-btn" data-target="cfgReportTitle" data-val="BÁO CÁO KẾT QUẢ CÔNG TÁC THÁNG VÀ KẾ HOẠCH NHIỆM VỤ THÁNG TIẾP THEO">Báo cáo tháng</button>
+                                    <button type="button" class="preset-btn" data-target="cfgReportTitle" data-val="BÁO CÁO TỔNG KẾT HOẠT ĐỘNG VÀ ĐĂNG TẢI NỘI DUNG NĂM 2026">Báo cáo tổng kết năm</button>
+                                    <button type="button" class="preset-btn" data-target="cfgReportTitle" data-val="BÁO CÁO TIẾN ĐỘ VẬN HÀNH VÀ PHẢN HỒI Ý KIẾN THÍ SINH">Báo cáo vận hành</button>
+                                    <button type="button" class="preset-btn" data-target="cfgReportTitle" data-val="BÁO CÁO ĐỘT XUẤT VỀ TÌNH HÌNH HỆ THỐNG DỮ LIỆU">Báo cáo đột xuất</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group meta-col-full">
+                            <label class="form-label" for="cfgReportSubtitle">Trích yếu nội dung (Về việc...)</label>
+                            <input type="text" id="cfgReportSubtitle" class="form-control" value="Về việc Đánh giá tình hình vận hành cơ sở dữ liệu, tiếp nhận thông tin và xuất bản thông báo" placeholder="Ví dụ: Về việc đánh giá tình hình triển khai công tác...">
+                        </div>
+
+                        <div class="form-group meta-col-full">
+                            <label class="form-label" for="cfgReportRecipient">Kính gửi (Cấp trên / Đơn vị tiếp nhận)</label>
+                            <input type="text" id="cfgReportRecipient" class="form-control" value="Kính gửi: Ban Giám đốc Viện Quản lý Chất lượng và Khảo thí" placeholder="Ví dụ: Kính gửi: Ban Giám đốc...">
+                        </div>
+
+                        <!-- Hàng 3: Người lập & Phụ trách phòng (Yêu cầu trọng tâm của User) -->
+                        <div class="form-group">
+                            <div class="sig-col-badge" style="margin-bottom: 8px;">
+                                <i class="fa-solid fa-user-pen text-emerald"></i>
+                                <strong>Người Lập Báo Cáo (Bên trái)</strong>
+                            </div>
+                            <label class="form-label" for="cfgUserTitle">Chức danh người lập</label>
+                            <input type="text" id="cfgUserTitle" class="form-control" value="NGƯỜI LẬP BÁO CÁO">
+                            
+                            <label class="form-label" for="cfgUserName" style="margin-top: 8px;">Họ và tên người lập <span class="required">*</span></label>
+                            <input type="text" id="cfgUserName" class="form-control" value="Nguyễn Thế Anh">
+                            
+                            <label class="form-label" for="cfgUserHint" style="margin-top: 8px;">Ghi chú ký</label>
+                            <input type="text" id="cfgUserHint" class="form-control" value="(Ký và ghi rõ họ tên)">
+                        </div>
+
+                        <div class="form-group">
+                            <div class="sig-col-badge" style="margin-bottom: 8px;">
+                                <i class="fa-solid fa-user-tie text-blue"></i>
+                                <strong>Phụ Trách Phòng / Lãnh Đạo (Bên phải)</strong>
+                            </div>
+                            <label class="form-label" for="cfgLeaderTitle">Chức vụ phụ trách phòng</label>
+                            <input type="text" id="cfgLeaderTitle" class="form-control" value="PHỤ TRÁCH PHÒNG">
+                            
+                            <label class="form-label" for="cfgLeaderName" style="margin-top: 8px;">Họ và tên phụ trách phòng</label>
+                            <input type="text" id="cfgLeaderName" class="form-control" value="...................................................." placeholder="Nhập họ tên hoặc để dòng chấm ký tươi...">
+                            
+                            <label class="form-label" for="cfgLeaderHint" style="margin-top: 8px;">Ghi chú ký</label>
+                            <input type="text" id="cfgLeaderHint" class="form-control" value="(Ký, ghi rõ họ tên)">
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- KHU VỰC 1: SOẠN THẢO VĂN BẢN KIỂU MICROSOFT WORD -->
+                <div id="editorSectionContainer">
+                    <div class="section-title-box" style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a;">
+                            <i class="fa-solid fa-file-word text-blue" style="margin-right: 6px;"></i>
+                            Khung Soạn Thảo Nội Dung (Hỗ Trợ Định Dạng Đầy Đủ Như Word)
+                        </div>
+                        <span style="font-size: 11.5px; color: #64748b;">
+                            Hỗ trợ bảng biểu, in đậm, nghiêng, gạch chân, căn lề, danh sách, hình ảnh
+                        </span>
+                    </div>
+
+                    <!-- THANH CÔNG CỤ RIBBON WORD -->
+                    <div class="word-ribbon-toolbar" id="wordToolbar">
+                        <!-- Nhóm 1: Undo / Redo / Format -->
+                        <div class="toolbar-group">
+                            <button type="button" class="tb-btn" data-cmd="undo" title="Hoàn tác (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="redo" title="Làm lại (Ctrl+Y)"><i class="fa-solid fa-rotate-right"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="removeFormat" title="Xóa định dạng"><i class="fa-solid fa-text-slash"></i></button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 2: Headings & Font -->
+                        <div class="toolbar-group">
+                            <select class="tb-select" id="tbHeadingSelect" title="Kiểu đoạn văn">
+                                <option value="p">Đoạn văn thường (13pt)</option>
+                                <option value="h1">Mục La Mã I, II... (H1 - 13.5pt Đậm)</option>
+                                <option value="h2">Mục số 1, 2, 3... (H2 - 13pt Đậm)</option>
+                                <option value="h3">Tiểu mục a, b, c... (H3 - 13pt Nghiêng)</option>
+                            </select>
+
+                            <select class="tb-select" id="tbFontFamily" title="Phông chữ">
+                                <option value="'Times New Roman', Times, serif" selected>Times New Roman (Chuẩn văn bản)</option>
+                                <option value="'Be Vietnam Pro', sans-serif">Be Vietnam Pro</option>
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="Roboto, sans-serif">Roboto</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                                <option value="Georgia, serif">Georgia</option>
+                            </select>
+
+                            <select class="tb-select" id="tbFontSize" title="Cỡ chữ">
+                                <option value="11pt">11 pt</option>
+                                <option value="12pt">12 pt</option>
+                                <option value="13pt" selected>13 pt (Chuẩn NĐ 30)</option>
+                                <option value="14pt">14 pt (Chuẩn NĐ 30)</option>
+                                <option value="16pt">16 pt</option>
+                                <option value="18pt">18 pt</option>
+                                <option value="20pt">20 pt</option>
+                                <option value="24pt">24 pt</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 3: Text Format -->
+                        <div class="toolbar-group">
+                            <button type="button" class="tb-btn" data-cmd="bold" title="In đậm (Ctrl+B)"><strong>B</strong></button>
+                            <button type="button" class="tb-btn" data-cmd="italic" title="In nghiêng (Ctrl+I)"><em>I</em></button>
+                            <button type="button" class="tb-btn" data-cmd="underline" title="Gạch chân (Ctrl+U)"><u>U</u></button>
+                            <button type="button" class="tb-btn" data-cmd="strikeThrough" title="Gạch ngang chữ"><s>S</s></button>
+                            <button type="button" class="tb-btn" data-cmd="subscript" title="Chỉ số dưới (X₂)">X₂</button>
+                            <button type="button" class="tb-btn" data-cmd="superscript" title="Chỉ số trên (X²)">X²</button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 4: Màu chữ & Highlight -->
+                        <div class="toolbar-group">
+                            <div class="tb-color-wrapper" title="Màu chữ">
+                                <button type="button" class="tb-btn" id="btnTextColor"><i class="fa-solid fa-font" style="border-bottom: 2px solid #ef4444;"></i></button>
+                                <input type="color" class="tb-color-input" id="inputTextColor" value="#000000">
+                            </div>
+                            <div class="tb-color-wrapper" title="Màu đánh dấu nền (Highlight)">
+                                <button type="button" class="tb-btn" id="btnBgColor"><i class="fa-solid fa-highlighter" style="color: #d97706;"></i></button>
+                                <input type="color" class="tb-color-input" id="inputBgColor" value="#fef08a">
+                            </div>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 5: Căn lề & Khoảng cách dòng -->
+                        <div class="toolbar-group">
+                            <button type="button" class="tb-btn" data-cmd="justifyLeft" title="Căn lề trái"><i class="fa-solid fa-align-left"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="justifyCenter" title="Căn giữa"><i class="fa-solid fa-align-center"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="justifyRight" title="Căn lề phải"><i class="fa-solid fa-align-right"></i></button>
+                            <button type="button" class="tb-btn active" data-cmd="justifyFull" title="Căn đều 2 bên (Chuẩn văn bản hành chính)"><i class="fa-solid fa-align-justify"></i></button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 6: Danh sách & Thụt lề -->
+                        <div class="toolbar-group">
+                            <button type="button" class="tb-btn" data-cmd="insertUnorderedList" title="Danh sách dấu chấm"><i class="fa-solid fa-list-ul"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="insertOrderedList" title="Danh sách số 1, 2, 3..."><i class="fa-solid fa-list-ol"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="outdent" title="Giảm lề (Shift+Tab)"><i class="fa-solid fa-outdent"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="indent" title="Tăng lề (Tab)"><i class="fa-solid fa-indent"></i></button>
+                        </div>
+                        <div class="toolbar-divider"></div>
+
+                        <!-- Nhóm 7: Chèn đối tượng Word (Bảng, ảnh, đường kẻ, link) -->
+                        <div class="toolbar-group">
+                            <button type="button" class="tb-btn" id="btnInsertTable" title="Chèn Bảng biểu"><i class="fa-solid fa-table"></i></button>
+                            <button type="button" class="tb-btn" id="btnInsertImage" title="Chèn Hình ảnh (Tải lên hoặc dán link)"><i class="fa-solid fa-image"></i></button>
+                            <button type="button" class="tb-btn" id="btnInsertLink" title="Chèn Liên kết web"><i class="fa-solid fa-link"></i></button>
+                            <button type="button" class="tb-btn" data-cmd="insertHorizontalRule" title="Chèn Đường kẻ ngang phân cách"><i class="fa-solid fa-minus"></i></button>
+                            <button type="button" class="tb-btn" id="btnInsertQuote" title="Chèn Đoạn trích dẫn"><i class="fa-solid fa-quote-left"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- KHUNG TRANG GIẤY A4 WORD -->
+                    <div class="word-page-viewport" id="editorSection">
+                        <div class="word-a4-page">
+                            <div class="word-editor-content" id="wordContentEditor" contenteditable="true" data-placeholder="Nhập nội dung báo cáo tại đây (Hỗ trợ định dạng đầy đủ như Microsoft Word: In đậm, in nghiêng, gạch chân, bảng biểu, danh sách, căn đều, hình ảnh...)..."></div>
+                        </div>
+                    </div>
+
+                    <!-- THANH TRẠNG THÁI -->
+                    <div class="editor-status-bar">
+                        <div class="status-left">
+                            <span><i class="fa-solid fa-file-lines text-emerald"></i> <span id="wordCountText">0 từ</span></span>
+                            <span>&bull;</span>
+                            <span><span id="charCountText">0 ký tự</span></span>
+                            <span>&bull;</span>
+                            <span id="autoSaveStatusText"><i class="fa-solid fa-cloud-check text-emerald"></i> Tự động lưu bản nháp</span>
+                        </div>
+                        <div class="status-right">
+                            <span>Khổ giấy: A4 Portrait (210 &times; 297 mm) &bull; Chuẩn NĐ 30/2020/NĐ-CP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KHU VỰC 2: XEM TRƯỚC VÀ IN BIỂU MẪU BÁO CÁO CHUẨN HÀNH CHÍNH (MERGED REPORT) -->
+                <div id="previewSectionContainer" style="display: none;">
+                    <div class="section-title-box" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
+                            <i class="fa-solid fa-file-circle-check text-emerald" style="margin-right: 6px;"></i>
+                            Mô Phỏng Biểu Mẫu Báo Cáo Hoàn Chỉnh Khi In / Xuất File
+                        </div>
+                        <button type="button" class="btn-sig-action btn-sig-print" id="btnPrintFromPreview">
+                            <i class="fa-solid fa-print"></i>
+                            <span>In Biểu Mẫu Này Ngay</span>
+                        </button>
+                    </div>
+
+                    <!-- VĂN BẢN GHÉP BIỂU MẪU CHUẨN A4 -->
+                    <article class="report-official-document" id="officialDocument">
+                        <!-- HEADER HÀNH CHÍNH -->
+                        <div class="doc-header">
+                            <div class="doc-header-left">
+                                <div class="doc-org-parent" id="docOrgParent">ĐẠI HỌC QUỐC GIA HÀ NỘI</div>
+                                <div class="doc-org-name" id="docOrgName">VIỆN QUẢN LÝ CHẤT LƯỢNG VÀ KHẢO THÍ</div>
+                                <div class="doc-org-divider"></div>
+                            </div>
+                            <div class="doc-header-right">
+                                <div class="doc-nation">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                                <div class="doc-motto">Độc lập - Tự do - Hạnh phúc</div>
+                                <div class="doc-motto-divider"></div>
+                                <div class="doc-date-place" id="docDatePlace">Hà Nội, ngày 22 tháng 10 năm 2026</div>
+                            </div>
+                        </div>
+
+                        <!-- TIÊU ĐỀ BÁO CÁO -->
+                        <div class="doc-title-block">
+                            <div class="doc-report-title" id="docReportTitle">BÁO CÁO KẾT QUẢ TRIỂN KHAI VÀ QUẢN TRỊ NỘI DUNG HỆ THỐNG NĂM 2026</div>
+                            <div class="doc-report-subtitle" id="docReportSubtitle">Về việc Đánh giá tình hình vận hành cơ sở dữ liệu, tiếp nhận thông tin và xuất bản thông báo</div>
+                            <div class="doc-recipient" id="docRecipient">Kính gửi: Ban Giám đốc Viện Quản lý Chất lượng và Khảo thí</div>
+                        </div>
+
+                        <!-- THÂN NỘI DUNG GHÉP TỪ TRÌNH SOẠN THẢO WORD -->
+                        <div class="doc-body-content" id="docMergedBody">
+                            <!-- Nội dung phong phú được ghép tự động qua JavaScript -->
+                        </div>
+
+                        <!-- CHÂN TRANG: CHỮ KÝ 2 CỘT CÂN ĐỐI -->
+                        <div class="doc-footer">
+                            <div class="doc-signatures-box">
+                                <div class="doc-sign-col">
+                                    <div class="doc-sign-title" id="docSignUserTitle">NGƯỜI LẬP BÁO CÁO</div>
+                                    <div class="doc-sign-hint" id="docSignUserHint">(Ký và ghi rõ họ tên)</div>
+                                    <div class="doc-sign-space"></div>
+                                    <div class="doc-sign-name" id="docSignUserName">Nguyễn Thế Anh</div>
+                                </div>
+                                <div class="doc-sign-col">
+                                    <div class="doc-sign-title" id="docSignLeaderTitle">PHỤ TRÁCH PHÒNG</div>
+                                    <div class="doc-sign-hint" id="docSignLeaderHint">(Ký, ghi rõ họ tên)</div>
+                                    <div class="doc-sign-space"></div>
+                                    <div class="doc-sign-name" id="docSignLeaderName">....................................................</div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL CHÈN BẢNG BIỂU ================= -->
+    <div class="modal-backdrop" id="insertTableModal">
+        <div class="modal-dialog" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-table text-emerald"></i>
+                    Chèn Bảng Biểu Mới
+                </h3>
+                <button class="modal-close-btn" id="closeTableModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group col-half">
+                        <label for="inputTableRows" class="form-label">Số hàng (Rows)</label>
+                        <input type="number" id="inputTableRows" class="form-control" value="4" min="1" max="50">
+                    </div>
+                    <div class="form-group col-half">
+                        <label for="inputTableCols" class="form-label">Số cột (Columns)</label>
+                        <input type="number" id="inputTableCols" class="form-control" value="4" min="1" max="15">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="chkTableHeader" checked>
+                        <span>Tạo dòng tiêu đề nổi bật (Header Row)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelTableModalBtn">Hủy</button>
+                <button type="button" class="btn-primary" id="confirmInsertTableBtn">
+                    <i class="fa-solid fa-check"></i> Chèn Bảng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL CHÈN HÌNH ẢNH ================= -->
+    <div class="modal-backdrop" id="insertImageModal">
+        <div class="modal-dialog" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-image text-emerald"></i>
+                    Chèn Hình Ảnh Vào Báo Cáo
+                </h3>
+                <button class="modal-close-btn" id="closeImageModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Cách 1: Tải ảnh từ máy tính</label>
+                    <input type="file" id="inputImageFile" class="form-control" accept="image/*">
+                </div>
+                <div style="text-align: center; color: #94a3b8; font-size: 11px; margin: 4px 0;">- HOẶC -</div>
+                <div class="form-group">
+                    <label for="inputImageUrl" class="form-label">Cách 2: Nhập đường link (URL) hình ảnh</label>
+                    <input type="url" id="inputImageUrl" class="form-control" placeholder="https://example.com/anh-bao-cao.jpg">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelImageModalBtn">Hủy</button>
+                <button type="button" class="btn-primary" id="confirmInsertImageBtn">
+                    <i class="fa-solid fa-check"></i> Chèn Ảnh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL CHỌN MẪU BÁO CÁO CHUẨN ================= -->
+    <div class="modal-backdrop" id="templatesModal">
+        <div class="modal-dialog" style="max-width: 580px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-wand-magic-sparkles text-emerald"></i>
+                    Kho Mẫu Báo Cáo Chuẩn Hành Chính
+                </h3>
+                <button class="modal-close-btn" id="closeTemplatesModalBtn">&times;</button>
+            </div>
+            <div class="modal-body" style="gap: 12px;">
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 4px;">
+                    Chọn một mẫu văn bản để tự động điền dàn ý, bảng biểu đối soát và cấu trúc chuẩn theo Nghị định 30/2020/NĐ-CP:
+                </p>
+                
+                <div class="template-choice-card" id="tplMonthlyReport" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; background: #f8fafc;">
+                    <div style="font-weight: 700; font-size: 13px; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-regular fa-file-lines"></i>
+                        1. Mẫu Báo Cáo Kết Quả Công Tác Tháng & Kế Hoạch Tháng Tới
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 4px;">
+                        Gồm 4 phần chuẩn: Tình hình triển khai, Kết quả định lượng (kèm bảng số liệu đối soát), Tồn tại & Nhiệm vụ trọng tâm.
+                    </div>
+                </div>
+
+                <div class="template-choice-card" id="tplYearlyReport" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; background: #f8fafc;">
+                    <div style="font-weight: 700; font-size: 13px; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-regular fa-file-lines"></i>
+                        2. Mẫu Báo Cáo Tổng Kết Hoạt Động & Đăng Tải Nội Dung Năm 2026
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 4px;">
+                        Đánh giá toàn diện các chỉ tiêu khảo thí, tin nhắn hỗ trợ, bài viết CMS và phân công cán bộ phụ trách.
+                    </div>
+                </div>
+
+                <div class="template-choice-card" id="tplIncidentReport" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; background: #f8fafc;">
+                    <div style="font-weight: 700; font-size: 13px; color: #065f46; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-regular fa-file-lines"></i>
+                        3. Mẫu Báo Cáo Chuyên Đề / Đột Xuất Về Dữ Liệu Khảo Thí
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 4px;">
+                        Khung báo cáo nhanh súc tích, tóm tắt sự vụ, nguyên nhân xử lý và kiến nghị giải pháp đến Ban Giám đốc.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelTemplatesModalBtn">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app4.js"></script>
+</body>
+</html>

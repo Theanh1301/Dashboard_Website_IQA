@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Thống Kê Thu Chi & Số Dư Ngân Sách Theo Tháng</title>
+    <!-- Google Fonts: Be Vietnam Pro -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Chart.js (Local offline first, CDN fallback) -->
+    <script src="chart.umd.min.js"></script>
+    <!-- PapaParse (Local offline first, CDN fallback) -->
+    <script src="papaparse.min.js"></script>
+    <script>
+        if (typeof Chart === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+        }
+        if (typeof Papa === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>');
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div class="header-text">
+                    <h2 class="org-name">Hệ Thống Quản Lý Tài Chính</h2>
+                    <p class="system-name">THỐNG KÊ THU - CHI & QUỸ</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="index.html" class="nav-link">
+                            <i class="fa-solid fa-comments nav-icon"></i>
+                            <span class="nav-label">Thống kê Câu hỏi & Trả lời</span>
+                            <span class="nav-badge" style="background: rgba(255,255,255,0.2); color: #fff;">Trang 1</span>
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="index2.html" class="nav-link">
+                            <i class="fa-solid fa-money-bill-trend-up nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Thống kê Thu - Chi & Quỹ</span>
+                            <span class="nav-badge green-badge">Trang 2</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index3.html" class="nav-link" style="color: #6ee7b7;">
+                            <i class="fa-solid fa-chart-pie nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Tổng quan Hệ thống & CMS</span>
+                            <span class="nav-badge green-badge">Trang 3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index4.html" class="nav-link" style="color: #6ee7b7;">
+                            <i class="fa-solid fa-file-pen nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Soạn Thảo & In Báo Cáo</span>
+                            <span class="nav-badge green-badge">Trang 4</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#dashboard" class="nav-link">
+                            <i class="fa-solid fa-gauge-high nav-icon"></i>
+                            <span class="nav-label">Tổng quan Thu - Chi</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#main-chart-section" class="nav-link">
+                            <i class="fa-solid fa-chart-line nav-icon"></i>
+                            <span class="nav-label">Biểu đồ 12 Tháng</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#table-section" class="nav-link">
+                            <i class="fa-solid fa-table-cells nav-icon"></i>
+                            <span class="nav-label">Bảng Số Liệu Chi Tiết</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#sheet-data-section" class="nav-link">
+                            <i class="fa-solid fa-receipt nav-icon"></i>
+                            <span class="nav-label">Nhật ký Google Sheet</span>
+                            <span class="nav-badge green-badge" id="sheetCountBadge">0</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-avatar-box">
+                    <img src="https://ui-avatars.com/api/?name=Ke+Toan&background=059669&color=fff&size=80" alt="Avatar" class="user-avatar">
+                </div>
+                <div class="user-details">
+                    <div class="user-fullname">Bộ Phận Kế Toán - Tài Chính</div>
+                    <div class="user-role-label">Hệ thống Quản lý Quỹ & Thu Chi</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================= MAIN CONTENT ================= -->
+        <main class="main-viewport">
+            <!-- PRINTABLE OFFICIAL REPORT HEADER (Chỉ hiện khi in A4) -->
+            <div class="print-only-header">
+                <div class="print-header-top">
+                    <div class="print-org-left">
+                        <strong>ĐẠI HỌC QUỐC GIA HÀ NỘI</strong><br>
+                        <span>BAN KẾ HOẠCH - TÀI CHÍNH & KHẢO THÍ</span>
+                    </div>
+                    <div class="print-org-right">
+                        <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                        <span>Độc lập - Tự do - Hạnh phúc</span>
+                    </div>
+                </div>
+                <h2 class="print-report-title">BÁO CÁO THỐNG KÊ TỔNG THU, TỔNG CHI VÀ SỐ DƯ QUỸ THEO THÁNG</h2>
+                <p class="print-report-subtitle">
+                    Nguồn dữ liệu: Google Sheet Quản Lý Tài Chính &bull; Ngày xuất báo cáo: <span id="printCurrentDate">--/--/----</span>
+                </p>
+            </div>
+
+            <!-- TOP HEADER BAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-sidebar-toggle" id="sidebarToggle" aria-label="Toggle Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div>
+                        <h1 class="page-title">Bảng Thống Kê Thu Chi & Số Dư Ngân Sách Theo Tháng</h1>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="live-clock-pill" id="liveClockPill">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="currentRealtimeClock">Đang tải...</span>
+                    </div>
+
+                    <div class="user-pill-tag">
+                        <i class="fa-regular fa-circle-user"></i>
+                        <span class="user-meta">Người dùng: Nguyễn Thế Anh (theanhthtc@vnu.edu.vn)</span>
+                        <span class="admin-badge">Admin</span>
+                    </div>
+
+                    <a href="https://docs.google.com/spreadsheets/d/1EMLGqqdeLV3FgbQaL0fAWGmT9F4YKjA_dm-WIvRS0fU/edit?gid=874461169#gid=874461169" target="_blank" rel="noopener noreferrer" class="btn-topbar outline-emerald" id="viewSheetLink" title="Mở trang Google Sheet tài chính">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Xem Google Sheet</span>
+                    </a>
+
+                    <button class="btn-topbar outline-emerald" id="btnOpenImportModal" title="Nhập dữ liệu CSV hoặc dán từ Google Sheet">
+                        <i class="fa-solid fa-file-import"></i>
+                        <span>Nhập CSV / Dán</span>
+                    </button>
+
+                    <button class="btn-topbar btn-topbar-refresh" id="topRefreshBtn" title="Làm mới & đồng bộ dữ liệu thời gian thực">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Làm mới</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- BANNER HƯỚNG DẪN ĐỒNG BỘ GOOGLE SHEET -->
+            <div style="padding: 14px 24px 0 24px;">
+                <div class="google-guide-banner" id="googleGuideBanner">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-circle-info" style="font-size: 16px;"></i>
+                        <div>
+                            <strong>Nguồn dữ liệu Google Sheet:</strong>
+                            <span id="bannerSheetDesc">Đang kết nối tới trang tính (gid: 874461169). Nếu sheet đang để quyền "Hạn chế", bạn có thể bật "Bất kỳ ai có đường liên kết -> Người xem" để đồng bộ tự động.</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-guide" id="btnShareGuide">
+                            <i class="fa-solid fa-key"></i> Hướng dẫn cấp quyền
+                        </button>
+                        <button class="btn-guide" id="btnPasteDataQuick" style="background: #0284c7;">
+                            <i class="fa-solid fa-paste"></i> Dán nhanh dữ liệu
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD BODY CONTAINER -->
+            <div class="dashboard-body" id="dashboard">
+
+                <!-- ================= 3 THẺ LỚN TRỌNG TÂM THEO YÊU CẦU ================= -->
+                <!-- 1. Tổng tiền tăng / tháng | 2. Tổng tiền đã chi / tháng | 3. Số tiền còn lại -->
+                <section class="stats-grid stats-grid-3">
+                    <!-- THẺ 1: TỔNG SỐ TIỀN TĂNG / THÁNG -->
+                    <div class="stat-card" id="cardIncome">
+                        <div class="stat-card-main">
+                            <span class="card-caption" id="cardIncomeCaption">TỔNG SỐ TIỀN TĂNG / THÁNG 10 (HIỆN TẠI)</span>
+                            <div class="card-metric text-emerald" id="totalIncomeCount">0 ₫</div>
+                            <div class="card-sublabel" id="currentMonthIncomeLabel">Khoản thu ngân sách trong tháng: Đang tính...</div>
+                            <div class="card-footer-info" id="cardIncomeFooter">Tổng tiền tăng cả năm: 0 ₫ (năm 2026)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-green" title="Tổng số tiền tăng / thu vào">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+                    </div>
+
+                    <!-- THẺ 2: TỔNG SỐ TIỀN ĐÃ CHI / THÁNG -->
+                    <div class="stat-card" id="cardExpense">
+                        <div class="stat-card-main">
+                            <span class="card-caption" id="cardExpenseCaption">TỔNG SỐ TIỀN ĐÃ CHI / THÁNG 10 (HIỆN TẠI)</span>
+                            <div class="card-metric text-rose-metric" id="totalExpenseCount">0 ₫</div>
+                            <div class="card-sublabel" id="currentMonthExpenseLabel">Các khoản đã giải ngân trong tháng: Đang tính...</div>
+                            <div class="card-footer-info" id="cardExpenseFooter">Tổng tiền đã chi cả năm: 0 ₫ (năm 2026)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-rose" title="Tổng số tiền đã chi">
+                            <i class="fa-solid fa-arrow-trend-down"></i>
+                        </div>
+                    </div>
+
+                    <!-- THẺ 3: SỐ TIỀN CÒN LẠI -->
+                    <div class="stat-card" id="cardBalance">
+                        <div class="stat-card-main">
+                            <span class="card-caption" id="cardBalanceCaption">SỐ TIỀN CÒN LẠI (SỐ DƯ QUỸ HIỆN TẠI)</span>
+                            <div class="card-metric text-balance-metric" id="totalBalanceCount">0 ₫</div>
+                            <div class="card-sublabel" id="currentMonthBalanceLabel">Chênh lệch trong tháng: Đang tính...</div>
+                            <div class="card-footer-info" id="cardBalanceFooter">Số dư tồn quỹ tích lũy: 0 ₫</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-cyan" title="Số tiền còn lại / Số dư">
+                            <i class="fa-solid fa-vault"></i>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FILTER & REALTIME TOOLBAR -->
+                <div class="filter-toolbar-card">
+                    <div class="toolbar-title-group">
+                        <span class="toolbar-main-title">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            Sơ Đồ Thống Kê Thu Chi & Số Dư Theo Thời Gian Thực
+                        </span>
+                        <div class="live-status-badge">
+                            <span class="pulse-dot"></span>
+                            <span id="syncStatusText">Dữ liệu thực tế thời gian thực</span>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-actions-group">
+                        <div class="select-wrapper">
+                            <label for="yearFilter">Năm:</label>
+                            <select id="yearFilter" class="custom-select">
+                                <option value="2026" selected>Năm 2026</option>
+                                <option value="2025">Năm 2025</option>
+                                <option value="all">Tất cả các năm</option>
+                            </select>
+                        </div>
+
+                        <div class="select-wrapper">
+                            <label for="monthFilter">Xem theo:</label>
+                            <select id="monthFilter" class="custom-select">
+                                <option value="all" selected>Toàn bộ 12 tháng</option>
+                                <option value="1">Tháng 1</option>
+                                <option value="2">Tháng 2</option>
+                                <option value="3">Tháng 3</option>
+                                <option value="4">Tháng 4</option>
+                                <option value="5">Tháng 5</option>
+                                <option value="6">Tháng 6</option>
+                                <option value="7">Tháng 7</option>
+                                <option value="8">Tháng 8</option>
+                                <option value="9">Tháng 9</option>
+                                <option value="10">Tháng 10 (Hiện tại)</option>
+                                <option value="11">Tháng 11</option>
+                                <option value="12">Tháng 12</option>
+                            </select>
+                        </div>
+
+                        <button class="btn-action btn-refresh" id="refreshDataBtn" title="Đồng bộ dữ liệu từ Google Sheet">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Làm mới & Đồng bộ</span>
+                        </button>
+
+                        <button class="btn-action btn-add" id="openAddTransactionBtn" title="Thêm khoản thu hoặc khoản chi mới">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm giao dịch mới</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MAIN CHART: SƠ ĐỒ THU CHI & SỐ DƯ 12 THÁNG -->
+                <section class="chart-section-card" id="main-chart-section">
+                    <div class="chart-card-header">
+                        <div class="header-left">
+                            <h3 class="chart-title">Sơ Đồ Dòng Tiền: Tiền Tăng, Tiền Đã Chi & Số Dư Còn Lại Qua 12 Tháng</h3>
+                            <p class="chart-subtitle">
+                                Biểu diễn chi tiết Tổng tiền tăng (Thu vào), Tổng tiền đã chi (Xuất quỹ) và Số tiền còn lại từng tháng
+                            </p>
+                            <div class="chart-legend-pills">
+                                <span class="legend-pill pill-income">
+                                    <span class="color-dot bg-emerald"></span>
+                                    <span>Tổng Tiền Tăng: <strong id="legendIncomeCount">0 ₫</strong></span>
+                                </span>
+                                <span class="legend-pill pill-expense">
+                                    <span class="color-dot bg-rose"></span>
+                                    <span>Tổng Tiền Đã Chi: <strong id="legendExpenseCount">0 ₫</strong></span>
+                                </span>
+                                <span class="legend-pill pill-balance">
+                                    <span class="color-dot bg-cyan"></span>
+                                    <span>Số Tiền Còn Lại: <strong id="legendBalanceCount">0 ₫</strong></span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="header-right chart-controls">
+                            <div class="btn-group-toggle" role="group">
+                                <button type="button" class="btn-toggle active" id="btnChartBar">
+                                    <i class="fa-solid fa-chart-simple"></i> Dạng Cột
+                                </button>
+                                <button type="button" class="btn-toggle" id="btnChartLine">
+                                    <i class="fa-solid fa-chart-line"></i> Dạng Đường
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="main-chart-wrapper">
+                        <canvas id="mainMonthlyChart"></canvas>
+                        <img id="printChartImg" class="print-chart-image" alt="Biểu đồ thống kê thu chi 12 tháng">
+                    </div>
+                </section>
+
+                <!-- 2 BIỂU ĐỒ PHÂN TÍCH: MINI CHARTS -->
+                <section class="mini-charts-grid" id="mini-charts-section">
+                    <!-- Biểu đồ 1: So sánh Thu - Chi qua các tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h4 class="mini-title">Xu Hướng Thu So Với Chi</h4>
+                                <p class="mini-subtitle">Biểu đồ đường đối sánh tốc độ tăng trưởng thu và chi</p>
+                            </div>
+                            <div class="mini-badge-tag badge-emerald" id="badgeCompareStatus">
+                                Thu vượt chi
+                            </div>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="chartMiniCompare"></canvas>
+                            <img id="printMiniCompareImg" class="print-mini-chart-image" alt="Biểu đồ so sánh thu chi">
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span><i class="fa-solid fa-circle-check text-emerald"></i> <span id="miniFooterIncome">Dòng tiền ổn định</span></span>
+                            <span><i class="fa-solid fa-bolt text-cyan"></i> Cập nhật theo thời gian thực</span>
+                        </div>
+                    </div>
+
+                    <!-- Biểu đồ 2: Cơ cấu sử dụng dòng tiền -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h4 class="mini-title">Tỷ Trọng Dòng Tiền & Giải Ngân</h4>
+                                <p class="mini-subtitle">Tỷ lệ tiền đã chi trên tổng số tiền tăng</p>
+                            </div>
+                            <div class="mini-badge-tag badge-cyan" id="badgeDisbursementRate">
+                                Tỷ lệ giải ngân: 0%
+                            </div>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="chartMiniStructure"></canvas>
+                            <img id="printMiniStructureImg" class="print-mini-chart-image" alt="Biểu đồ cơ cấu dòng tiền">
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span><i class="fa-solid fa-shield-halved text-cyan"></i> <span id="miniFooterDisbursement">Quỹ dự trữ an toàn</span></span>
+                            <span><i class="fa-solid fa-scale-balanced text-emerald"></i> Cân đối ngân sách</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= BẢNG CHỈ SỐ CHI TIẾT 12 THÁNG ================= -->
+                <section class="table-section-card" id="table-section">
+                    <div class="table-header-box">
+                        <div>
+                            <h3 class="table-card-title">Bảng Thống Kê Chi Tiết Thu, Chi & Số Dư 12 Tháng</h3>
+                            <p class="table-card-subtitle">
+                                Bảng số liệu đối soát Tổng tiền đã chi / tháng, Tổng tiền tăng / tháng và Số tiền còn lại
+                            </p>
+                        </div>
+                        <div class="table-actions">
+                            <button class="btn-print-report" id="btnPrintReport" title="In trực tiếp bảng thống kê chi tiết 12 tháng ra máy in hoặc lưu PDF">
+                                <i class="fa-solid fa-print"></i>
+                                <span>In Báo Cáo</span>
+                            </button>
+                            <button class="btn-export" id="exportCsvBtn" title="Xuất dữ liệu bảng 12 tháng sang file CSV">
+                                <i class="fa-solid fa-file-csv"></i>
+                                <span>Xuất file CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="report-table" id="monthlyReportTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 140px;">Tháng</th>
+                                    <th>Tổng Số Tiền Tăng / Tháng</th>
+                                    <th>Tổng Số Tiền Đã Chi / Tháng</th>
+                                    <th>Chênh Lệch Trong Tháng</th>
+                                    <th>Số Tiền Còn Lại (Số Dư Quỹ)</th>
+                                    <th style="width: 120px;">Tỷ Lệ Chi / Thu</th>
+                                    <th style="width: 160px;">Đánh Giá Hoạt Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyTableBody">
+                                <!-- Populated dynamically by app2.js -->
+                            </tbody>
+                            <tfoot id="monthlyTableFoot">
+                                <tr>
+                                    <td><strong>Tổng Cả Năm</strong></td>
+                                    <td id="footTotalIncome"><strong>0 ₫</strong></td>
+                                    <td id="footTotalExpense"><strong>0 ₫</strong></td>
+                                    <td id="footTotalNet"><strong>0 ₫</strong></td>
+                                    <td id="footTotalBalance"><strong>0 ₫</strong></td>
+                                    <td id="footAvgRate"><strong>0%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Cân đối an toàn</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- PRINT ONLY SIGNATURE BLOCK (Chỉ xuất hiện khi in báo cáo A4) -->
+                    <div class="print-only-signatures">
+                        <div class="sign-box-left">
+                            <p><strong>NGƯỜI LẬP BIỂU</strong></p>
+                            <span class="sign-hint">(Ký và ghi rõ họ tên)</span>
+                            <div class="sign-space"></div>
+                            <div class="sign-name">Nguyễn Thế Anh</div>
+                        </div>
+                        <div class="sign-box-right">
+                            <p><strong>KẾ TOÁN TRƯỞNG / TRƯỞNG BAN TÀI CHÍNH</strong></p>
+                            <span class="sign-hint">(Ký, đóng dấu và ghi rõ họ tên)</span>
+                            <div class="sign-space"></div>
+                            <div class="sign-name">....................................................</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= NHẬT KÝ CHI TIẾT CÁC GIAO DỊCH TỪ GOOGLE SHEET ================= -->
+                <section class="sheet-data-section" id="sheet-data-section">
+                    <div class="sheet-section-header">
+                        <div class="header-info">
+                            <h3 class="sheet-title">
+                                <i class="fa-brands fa-google-drive text-emerald"></i>
+                                Sổ Nhật Ký Giao Dịch Thu Chi Từ Google Sheet
+                            </h3>
+                            <p class="sheet-subtitle">
+                                Bảng chi tiết từng phát sinh thu, chi và số dư (Hỗ trợ phân trang, tìm kiếm & bộ lọc)
+                            </p>
+                        </div>
+                        <div class="sheet-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div class="select-wrapper">
+                                <label for="transactionTypeFilter">Loại:</label>
+                                <select id="transactionTypeFilter" class="custom-select select-sm">
+                                    <option value="all" selected>Tất cả giao dịch</option>
+                                    <option value="income">Chỉ khoản tăng (Thu)</option>
+                                    <option value="expense">Chỉ khoản đã chi</option>
+                                </select>
+                            </div>
+                            <div class="search-input-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="searchInput" placeholder="Tìm kiếm theo mã GD, diễn giải nội dung, ngày...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="data-table" id="transactionsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">STT / Mã</th>
+                                    <th style="width: 220px;">Thời Gian (Cột Google Sheet)</th>
+                                    <th style="width: 180px; text-align: right;">Số Tiền Chi</th>
+                                    <th style="width: 180px; text-align: right;">Số Tiền Tăng</th>
+                                    <th style="width: 200px; text-align: right;">Số Tiền Còn Lại</th>
+                                    <th style="width: 170px;">Trạng Thái / Diễn Giải</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsDataBody">
+                                <!-- Populated dynamically by app2.js -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- THANH PHÂN TRANG -->
+                    <div class="pagination-toolbar" id="paginationToolbar">
+                        <div class="pagination-info" id="paginationInfo">
+                            Hiển thị 1 - 25 giao dịch
+                        </div>
+                        <div class="pagination-controls">
+                            <label for="pageSizeSelect" class="page-size-label">Xem:</label>
+                            <select id="pageSizeSelect" class="custom-select select-sm">
+                                <option value="15">15 dòng / trang</option>
+                                <option value="25" selected>25 dòng / trang</option>
+                                <option value="50">50 dòng / trang</option>
+                                <option value="100">100 dòng / trang</option>
+                            </select>
+                            <button type="button" class="btn-page" id="btnFirstPage" title="Trang đầu">
+                                <i class="fa-solid fa-backward-step"></i>
+                            </button>
+                            <button type="button" class="btn-page" id="btnPrevPage" title="Trang trước">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span class="page-current-indicator" id="pageIndicator">Trang 1 / 1</span>
+                            <button type="button" class="btn-page" id="btnNextPage" title="Trang sau">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <button type="button" class="btn-page" id="btnLastPage" title="Trang cuối">
+                                <i class="fa-solid fa-forward-step"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- QUICK ACTIONS BAR -->
+                <div class="quick-actions-bar">
+                    <span class="quick-action-title">Thao Tác Nhanh</span>
+                    <div class="action-buttons-wrap">
+                        <button class="btn-quick-emerald" id="quickPrintBtn">
+                            <i class="fa-solid fa-print"></i> In Báo Cáo 12 Tháng
+                        </button>
+                        <button class="btn-quick-emerald" id="quickAddBtn">
+                            <i class="fa-solid fa-plus"></i> Thêm giao dịch Thu / Chi
+                        </button>
+                        <button class="btn-quick-emerald" id="quickSyncBtn">
+                            <i class="fa-solid fa-arrows-rotate"></i> Đồng bộ lại Google Sheet
+                        </button>
+                        <button class="btn-quick-light" id="quickExportDataBtn">
+                            <i class="fa-solid fa-file-excel"></i> Xuất dữ liệu giao dịch CSV
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL: THÊM GIAO DỊCH THU / CHI MỚI ================= -->
+    <div class="modal-backdrop" id="addTransactionModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-circle-plus text-emerald"></i>
+                    Thêm Giao Dịch Thu / Chi Mới (Cập Nhật Tức Thì)
+                </h3>
+                <button class="modal-close-btn" id="closeAddModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addTransactionForm">
+                    <div class="form-row">
+                        <div class="form-group col-half">
+                            <label for="inputType" class="form-label">Loại giao dịch <span class="required">*</span></label>
+                            <select id="inputType" class="form-control" required>
+                                <option value="income">Khoản tăng (Thu vào / Ngân sách nhận)</option>
+                                <option value="expense">Khoản chi (Chi phí / Xuất quỹ)</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-half">
+                            <label for="inputAmount" class="form-label">Số tiền (VNĐ) <span class="required">*</span></label>
+                            <input type="text" id="inputAmount" class="form-control" placeholder="Ví dụ: 15.000.000" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputDescription" class="form-label">Nội dung / Diễn giải chi tiết <span class="required">*</span></label>
+                        <input type="text" id="inputDescription" class="form-control" placeholder="Ví dụ: Thu lệ phí đăng ký dự thi HSA đợt 2" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-half">
+                            <label for="inputDate" class="form-label">Ngày giao dịch</label>
+                            <input type="date" id="inputDate" class="form-control">
+                        </div>
+                        <div class="form-group col-half">
+                            <label for="inputCategory" class="form-label">Hạng mục / Phân loại</label>
+                            <select id="inputCategory" class="form-control">
+                                <option value="Lệ phí khảo thí">Lệ phí khảo thí</option>
+                                <option value="Ngân sách đào tạo">Ngân sách đào tạo</option>
+                                <option value="Thù lao cán bộ coi thi">Thù lao cán bộ coi thi</option>
+                                <option value="In ấn & Văn phòng phẩm">In ấn & Văn phòng phẩm</option>
+                                <option value="Hạ tầng CNTT & Máy chủ">Hạ tầng CNTT & Máy chủ</option>
+                                <option value="Truyền thông & Tuyển sinh">Truyền thông & Tuyển sinh</option>
+                                <option value="Khác">Khoản mục khác</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelAddBtn">Hủy Bỏ</button>
+                <button type="button" class="btn-primary" id="saveTransactionBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu & Cập Nhật Biểu Đồ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: NHẬP CSV / DÁN DỮ LIỆU GOOGLE SHEET ================= -->
+    <div class="modal-backdrop" id="importModal">
+        <div class="modal-dialog modal-dialog-large">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-file-import text-emerald"></i>
+                    Nhập Dữ Liệu Từ Google Sheet / Tải Lên CSV
+                </h3>
+                <button class="modal-close-btn" id="closeImportModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 12.5px; color: #475569; margin-bottom: 12px;">
+                    Bạn có thể tải file CSV trực tiếp từ Google Sheet về máy và tải lên ở đây, hoặc copy các dòng trong Google Sheet và dán vào ô bên dưới:
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Cách 1: Chọn file CSV từ máy tính</label>
+                    <input type="file" id="csvFileInput" accept=".csv, .txt, .tsv" class="form-control" style="padding: 6px;">
+                </div>
+                <div class="form-group" style="margin-top: 14px;">
+                    <label for="pasteDataInput" class="form-label">Cách 2: Hoặc Dán nội dung sao chép từ Google Sheet (Ctrl + V)</label>
+                    <textarea id="pasteDataInput" class="form-control" rows="6" placeholder="Dán các dòng dữ liệu sao chép từ Google Sheet vào đây... (Hỗ trợ định dạng có cột Ngày, Tăng/Thu, Chi, Còn lại/Số dư, Diễn giải)"></textarea>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label for="customSheetUrlInput" class="form-label">Cách 3: Đổi liên kết Google Sheet mới</label>
+                    <input type="text" id="customSheetUrlInput" class="form-control" value="https://docs.google.com/spreadsheets/d/1EMLGqqdeLV3FgbQaL0fAWGmT9F4YKjA_dm-WIvRS0fU/edit?gid=874461169#gid=874461169">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelImportBtn">Đóng</button>
+                <button type="button" class="btn-primary" id="processImportBtn">
+                    <i class="fa-solid fa-arrow-down-to-bracket"></i> Xử Lý & Nạp Dữ Liệu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: HƯỚNG DẪN CẤP QUYỀN CHIA SẺ GOOGLE SHEET ================= -->
+    <div class="modal-backdrop" id="guideModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-circle-question text-emerald"></i>
+                    Hướng Dẫn Bật Đồng Bộ Trực Tiếp Từ Google Sheet
+                </h3>
+                <button class="modal-close-btn" id="closeGuideModalBtn">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size: 13px; line-height: 1.6; color: #334155;">
+                <p>Để hệ thống tự động tải số liệu tức thì từ liên kết Google Sheet của bạn mà không cần đăng nhập Google, bạn làm theo 3 bước đơn giản:</p>
+                <ol style="margin-left: 20px; margin-top: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                    <li>Mở file Google Sheet bằng cách bấm nút <strong>"Xem Google Sheet"</strong> ở góc trên bên phải.</li>
+                    <li>Ở góc trên cùng bên phải của Google Sheet, bấm nút <strong>"Chia sẻ" (Share)</strong> màu xanh.</li>
+                    <li>Tại mục <em>"Quyền truy cập chung"</em>, chọn <strong>"Bất kỳ ai có đường liên kết"</strong> (Anyone with the link) với quyền <strong>"Người xem" (Viewer)</strong> rồi bấm <strong>Xong</strong>.</li>
+                </ol>
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; color: #166534; font-size: 12px;">
+                    <i class="fa-solid fa-lightbulb"></i> <strong>Mẹo:</strong> Sau khi bật chia sẻ xong, bạn chỉ cần bấm nút <strong>"Làm mới & Đồng bộ"</strong>, biểu đồ và số dư thu chi sẽ được cập nhật tự động 100%!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="https://docs.google.com/spreadsheets/d/1EMLGqqdeLV3FgbQaL0fAWGmT9F4YKjA_dm-WIvRS0fU/edit?gid=874461169#gid=874461169" target="_blank" class="btn-primary" style="text-decoration: none;">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Google Sheet Ngay
+                </a>
+                <button type="button" class="btn-cancel" id="closeGuideBtnAction">Đã Hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="sheet2_data.js"></script>
+    <script src="app2.js"></script>
+</body>
+</html>

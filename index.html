@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Thống Kê Số Câu Hỏi / Tháng & Câu Trả Lời / Tháng</title>
+    <!-- Google Fonts: Be Vietnam Pro -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Chart.js (Local offline first, CDN fallback) -->
+    <script src="chart.umd.min.js"></script>
+    <!-- PapaParse (Local offline first, CDN fallback) -->
+    <script src="papaparse.min.js"></script>
+    <script>
+        if (typeof Chart === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>');
+        }
+        if (typeof Papa === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>');
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <div class="header-text">
+                    <h2 class="org-name">Hệ Thống Quản Lý Tin Nhắn</h2>
+                    <p class="system-name">THỐNG KÊ CÂU HỎI & TRẢ LỜI</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active">
+                        <a href="index.html" class="nav-link">
+                            <i class="fa-solid fa-chart-column nav-icon"></i>
+                            <span class="nav-label">Thống kê Câu hỏi & Trả lời</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index2.html" class="nav-link" style="color: #6ee7b7;">
+                            <i class="fa-solid fa-money-bill-trend-up nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Thống kê Thu - Chi & Quỹ</span>
+                            <span class="nav-badge green-badge">Trang 2</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index3.html" class="nav-link" style="color: #6ee7b7;">
+                            <i class="fa-solid fa-chart-pie nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Tổng quan Hệ thống & CMS</span>
+                            <span class="nav-badge green-badge">Trang 3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="index4.html" class="nav-link" style="color: #6ee7b7;">
+                            <i class="fa-solid fa-file-pen nav-icon" style="color: #34d399;"></i>
+                            <span class="nav-label">Soạn Thảo & In Báo Cáo</span>
+                            <span class="nav-badge green-badge">Trang 4</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#main-chart-section" class="nav-link">
+                            <i class="fa-solid fa-chart-line nav-icon"></i>
+                            <span class="nav-label">Biểu đồ 12 Tháng</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#table-section" class="nav-link">
+                            <i class="fa-solid fa-table-cells nav-icon"></i>
+                            <span class="nav-label">Bảng Số Liệu Chi Tiết</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#sheet-data-section" class="nav-link">
+                            <i class="fa-solid fa-table-list nav-icon"></i>
+                            <span class="nav-label">Dữ liệu Google Sheet</span>
+                            <span class="nav-badge green-badge" id="sheetCountBadge">22,944</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#signatureSection" class="nav-link" id="navSignatureLink">
+                            <i class="fa-solid fa-file-signature nav-icon"></i>
+                            <span class="nav-label">Cấu hình Chữ ký Bản in</span>
+                            <span class="nav-badge green-badge">Chữ ký</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-avatar-box">
+                    <img src="https://ui-avatars.com/api/?name=Admin+QL&background=10b981&color=fff&size=80" alt="Avatar" class="user-avatar">
+                </div>
+                <div class="user-details">
+                    <div class="user-fullname">Quản Trị Viên</div>
+                    <div class="user-role-label">Hệ thống QL Messenger</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ================= MAIN CONTENT ================= -->
+        <main class="main-viewport">
+            <!-- PRINTABLE OFFICIAL REPORT HEADER (Chỉ hiện khi in) -->
+            <div class="print-only-header">
+                <div class="print-header-top">
+                    <div class="print-org-left">
+                        <strong>ĐẠI HỌC QUỐC GIA HÀ NỘI</strong><br>
+                        <span>VIỆN QUẢN LÝ CHẤT LƯỢNG VÀ KHẢO THÍ</span>
+                    </div>
+                    <div class="print-org-right">
+                        <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                        <span>Độc lập - Tự do - Hạnh phúc</span>
+                    </div>
+                </div>
+                <h2 class="print-report-title">BÁO CÁO THỐNG KÊ SỐ CÂU HỎI VÀ CÂU TRẢ LỜI THEO THÁNG</h2>
+                <p class="print-report-subtitle">
+                    Nguồn dữ liệu: Google Sheet Hệ Thống Khảo Thí &bull; Ngày xuất báo cáo: <span id="printCurrentDate">--/--/----</span>
+                </p>
+            </div>
+
+            <!-- TOP HEADER BAR -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-sidebar-toggle" id="sidebarToggle" aria-label="Toggle Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Bảng Thống Kê Số Câu Hỏi / Tháng & Câu Trả Lời / Tháng</h1>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="live-clock-pill" id="liveClockPill">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="currentRealtimeClock">Đang tải...</span>
+                    </div>
+
+                    <div class="user-pill-tag">
+                        <i class="fa-regular fa-circle-user"></i>
+                        <span class="user-meta">Người dùng: Nguyễn Thế Anh (theanhthtc@vnu.edu.vn)</span>
+                        <span class="admin-badge">Admin</span>
+                    </div>
+
+                    <a href="https://docs.google.com/spreadsheets/d/1PnhHfKOoG19baEy4WOQzLodhAyNRjKVPztcCMt34bzQ/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer" class="btn-topbar outline-emerald" id="viewSheetLink" title="Mở trang Google Sheet mới">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Xem Google Sheet</span>
+                    </a>
+
+                    <button class="btn-topbar btn-topbar-refresh" id="topRefreshBtn" title="Làm mới bảng dashboard theo thời gian thực">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Làm mới</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- DASHBOARD BODY CONTAINER (QUAY VỀ GIAO DIỆN CŨ SẠCH SẼ) -->
+            <div class="dashboard-body">
+
+                <!-- TOP STAT CARDS: 2 THẺ LỚN TRỌNG TÂM -->
+                <section class="stats-grid stats-grid-2">
+                    <div class="stat-card" id="cardQuestions">
+                        <div class="stat-card-main">
+                            <span class="card-caption" id="cardQuestionsCaption">CÂU HỎI TIẾP NHẬN / THÁNG 10 (HIỆN TẠI)</span>
+                            <div class="card-metric text-emerald" id="totalQuestionsCount">20</div>
+                            <div class="card-sublabel" id="currentMonthQuestionsLabel">Số lượng tiếp nhận trong Tháng 10 hiện tại: 20 câu hỏi</div>
+                            <div class="card-footer-info" id="cardQuestionsFooter">Tổng tích lũy cả năm: 18.519 câu hỏi đã tiếp nhận (năm 2026)</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-green">
+                            <i class="fa-solid fa-clipboard-question"></i>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" id="cardAnswers">
+                        <div class="stat-card-main">
+                            <span class="card-caption" id="cardAnswersCaption">CÂU TRẢ LỜI ĐÃ PHẢN HỒI / THÁNG 10 (HIỆN TẠI)</span>
+                            <div class="card-metric text-cyan-metric" id="totalAnswersCount">20</div>
+                            <div class="card-sublabel" id="currentMonthAnswersLabel">Số lượng đã phản hồi trong Tháng 10 hiện tại: 20 phản hồi</div>
+                            <div class="card-footer-info" id="cardAnswersFooter">Tỷ lệ phản hồi Tháng 10: 100% (20/20 phản hồi) &bull; Cả năm: 18.519 phản hồi</div>
+                        </div>
+                        <div class="stat-icon-wrapper pastel-cyan">
+                            <i class="fa-solid fa-comment-dots"></i>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FILTER & REALTIME TOOLBAR -->
+                <div class="filter-toolbar-card">
+                    <div class="toolbar-title-group">
+                        <span class="toolbar-main-title">
+                            <i class="fa-solid fa-chart-column"></i>
+                            Sơ Đồ Thống Kê Theo Thời Gian Thực & Cột Thời Gian
+                        </span>
+                        <div class="live-status-badge">
+                            <span class="pulse-dot"></span>
+                            <span id="syncStatusText">Dữ liệu thực tế thời gian thực</span>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-actions-group">
+                        <div class="select-wrapper">
+                            <label for="yearFilter">Năm:</label>
+                            <select id="yearFilter" class="custom-select">
+                                <option value="2026" selected>Năm 2026</option>
+                                <option value="2025">Năm 2025</option>
+                                <option value="all">Tất cả các năm</option>
+                            </select>
+                        </div>
+
+                        <div class="select-wrapper">
+                            <label for="monthFilter">Xem theo:</label>
+                            <select id="monthFilter" class="custom-select">
+                                <option value="all" selected>Toàn bộ 12 tháng</option>
+                                <option value="1">Tháng 1</option>
+                                <option value="2">Tháng 2</option>
+                                <option value="3">Tháng 3</option>
+                                <option value="4">Tháng 4</option>
+                                <option value="5">Tháng 5</option>
+                                <option value="6">Tháng 6</option>
+                                <option value="7">Tháng 7</option>
+                                <option value="8">Tháng 8</option>
+                                <option value="9">Tháng 9</option>
+                                <option value="10">Tháng 10 (Hiện tại)</option>
+                                <option value="11">Tháng 11</option>
+                                <option value="12">Tháng 12</option>
+                            </select>
+                        </div>
+
+                        <button class="btn-action btn-refresh" id="refreshDataBtn" title="Đồng bộ dữ liệu từ Google Sheet">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Làm mới & Đồng bộ</span>
+                        </button>
+
+                        <button class="btn-action btn-add" id="openAddModalBtn" title="Thêm câu hỏi mới vào bảng tính thời gian thực">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Thêm câu hỏi mới</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MAIN CHART: SƠ ĐỒ CÂU HỎI / THÁNG & CÂU TRẢ LỜI / THÁNG -->
+                <section class="chart-section-card" id="main-chart-section">
+                    <div class="chart-card-header">
+                        <div class="header-left">
+                            <h3 class="chart-title">Sơ Đồ Hoạt Động: Số Câu Hỏi / Tháng & Câu Trả Lời / Tháng</h3>
+                            <p class="chart-subtitle">
+                                Thống kê trực tiếp theo thời gian thực và thời gian trong cột "Thời gian" của Google Sheet qua 12 tháng
+                            </p>
+                            <div class="chart-legend-pills">
+                                <span class="legend-pill pill-questions">
+                                    <span class="color-dot bg-emerald"></span>
+                                    <span>Câu hỏi / Tháng: <strong id="legendQuestionsCount">18.512 câu</strong></span>
+                                </span>
+                                <span class="legend-pill pill-answers">
+                                    <span class="color-dot bg-cyan"></span>
+                                    <span>Câu trả lời / Tháng: <strong id="legendAnswersCount">18.512 câu</strong></span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="header-right chart-controls">
+                            <div class="btn-group-toggle" role="group">
+                                <button type="button" class="btn-toggle active" id="btnChartBar">
+                                    <i class="fa-solid fa-chart-simple"></i> Dạng Cột
+                                </button>
+                                <button type="button" class="btn-toggle" id="btnChartLine">
+                                    <i class="fa-solid fa-chart-line"></i> Dạng Đường
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="main-chart-wrapper">
+                        <canvas id="mainMonthlyChart"></canvas>
+                        <img id="printChartImg" class="print-chart-image" alt="Biểu đồ thống kê 12 tháng">
+                    </div>
+                </section>
+
+                <!-- 2 BIỂU ĐỒ CHI TIẾT: CÂU HỎI / THÁNG VÀ CÂU TRẢ LỜI / THÁNG -->
+                <section class="mini-charts-grid">
+                    <!-- Biểu đồ 1: Số câu hỏi / Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h4 class="mini-title">Số Lượng Câu Hỏi / Tháng</h4>
+                                <p class="mini-subtitle">Xu hướng người dùng đặt câu hỏi qua các tháng</p>
+                            </div>
+                            <div class="mini-badge-tag badge-emerald" id="badgeQuestionsMonth">
+                                Đang thống kê...
+                            </div>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="chartMiniQuestions"></canvas>
+                            <img id="printMiniQuestionsImg" class="print-mini-chart-image" alt="Biểu đồ xu hướng câu hỏi 12 tháng">
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span><i class="fa-solid fa-circle-check text-emerald"></i> <span id="miniFooterQuestions">Câu hỏi tiếp nhận</span></span>
+                            <span><i class="fa-solid fa-bolt text-cyan"></i> Cập nhật theo thời gian thực</span>
+                        </div>
+                    </div>
+
+                    <!-- Biểu đồ 2: Số câu trả lời / Tháng -->
+                    <div class="mini-chart-card">
+                        <div class="mini-header">
+                            <div>
+                                <h4 class="mini-title">Số Lượng Câu Trả Lời / Tháng</h4>
+                                <p class="mini-subtitle">Số câu trả lời đã được phản hồi thực tế theo từng tháng</p>
+                            </div>
+                            <div class="mini-badge-tag badge-cyan" id="badgeAnswersMonth">
+                                Đang thống kê...
+                            </div>
+                        </div>
+                        <div class="mini-canvas-box">
+                            <canvas id="chartMiniAnswers"></canvas>
+                            <img id="printMiniAnswersImg" class="print-mini-chart-image" alt="Biểu đồ xu hướng câu trả lời 12 tháng">
+                        </div>
+                        <div class="mini-footer-tags">
+                            <span><i class="fa-solid fa-circle-check text-cyan"></i> <span id="miniFooterAnswers">Phản hồi hoàn tất</span></span>
+                            <span><i class="fa-solid fa-chart-pie text-emerald"></i> Tỷ lệ phản hồi 100%</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BẢNG CHỈ SỐ CHI TIẾT 12 THÁNG (CÓ NÚT IN BÁO CÁO & XUẤT CSV) -->
+                <section class="table-section-card" id="table-section">
+                    <div class="table-header-box">
+                        <div>
+                            <h3 class="table-card-title">Bảng Thống Kê Chi Tiết 12 Tháng</h3>
+                            <p class="table-card-subtitle">
+                                Bảng đối soát số lượng Câu hỏi / Tháng và Câu trả lời / Tháng theo dữ liệu thực tế
+                            </p>
+                        </div>
+                        <div class="table-actions">
+                            <button class="btn-config-sign" id="btnConfigSignatures" title="Cập nhật nhanh Người lập biểu & Lãnh đạo ký bản in">
+                                <i class="fa-solid fa-pen-nib"></i>
+                                <span>Đổi Người Ký In</span>
+                            </button>
+                            <!-- NÚT IN BÁO CÁO ĐƯỢC BỔ SUNG THEO YÊU CẦU -->
+                            <button class="btn-print-report" id="btnPrintReport" title="In trực tiếp bảng thống kê chi tiết 12 tháng ra máy in hoặc lưu PDF">
+                                <i class="fa-solid fa-print"></i>
+                                <span>In Báo Cáo</span>
+                            </button>
+                            <button class="btn-export" id="exportCsvBtn" title="Xuất dữ liệu bảng sang file CSV">
+                                <i class="fa-solid fa-file-csv"></i>
+                                <span>Xuất file CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="report-table" id="monthlyReportTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 160px;">Tháng</th>
+                                    <th>Số Câu Hỏi / Tháng</th>
+                                    <th>Số Câu Trả Lời / Tháng</th>
+                                    <th>Tỷ Lệ Phản Hồi</th>
+                                    <th>Đánh Giá Hoạt Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyTableBody">
+                                <tr>
+                                    <td><strong>Tháng 1</strong></td>
+                                    <td><span class="pill-badge pill-green">2.201 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">2.201 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 2</strong></td>
+                                    <td><span class="pill-badge pill-green">8.465 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">8.465 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 3</strong></td>
+                                    <td><span class="pill-badge pill-green">2.044 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">2.044 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 4</strong></td>
+                                    <td><span class="pill-badge pill-green">1.606 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">1.606 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 5</strong></td>
+                                    <td><span class="pill-badge pill-green">2.544 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">2.544 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 6</strong></td>
+                                    <td><span class="pill-badge pill-green">855 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">855 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 7</strong></td>
+                                    <td><span class="pill-badge pill-green">380 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">380 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 8</strong></td>
+                                    <td><span class="pill-badge pill-green">303 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">303 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tháng 9</strong></td>
+                                    <td><span class="pill-badge pill-green">101 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">101 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr class="row-current-month">
+                                    <td>
+                                        <strong class="text-emerald">Tháng 10</strong>
+                                    </td>
+                                    <td><span class="pill-badge pill-green">13 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-cyan">13 câu trả lời</span></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Đạt chỉ tiêu</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Tháng 11</td>
+                                    <td><span class="pill-badge pill-gray">0 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-gray">0 câu trả lời</span></td>
+                                    <td><strong>-</strong></td>
+                                    <td><span class="pill-badge pill-status-empty">Chưa có dữ liệu</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Tháng 12</td>
+                                    <td><span class="pill-badge pill-gray">0 câu hỏi</span></td>
+                                    <td><span class="pill-badge pill-gray">0 câu trả lời</span></td>
+                                    <td><strong>-</strong></td>
+                                    <td><span class="pill-badge pill-status-empty">Chưa có dữ liệu</span></td>
+                                </tr>
+                            </tbody>
+                            <tfoot id="monthlyTableFoot">
+                                <tr>
+                                    <td><strong>Tổng cả năm (2026)</strong></td>
+                                    <td><strong>18.512 câu hỏi</strong></td>
+                                    <td><strong>18.512 câu trả lời</strong></td>
+                                    <td><strong>100%</strong></td>
+                                    <td><span class="pill-badge pill-status-target">+ Hoạt động bình thường</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- PRINT ONLY SIGNATURE BLOCK (Chỉ xuất hiện khi in báo cáo sau bảng thống kê 12 tháng) -->
+                    <div class="print-only-signatures" id="printOnlySignaturesBlock">
+                        <div class="sign-box-left">
+                            <p><strong id="printSignUserTitle">NGƯỜI LẬP BIỂU</strong></p>
+                            <span class="sign-hint" id="printSignUserHint">(Ký và ghi rõ họ tên)</span>
+                            <div class="sign-space"></div>
+                            <div class="sign-name" id="printSignUserName">Nguyễn Thế Anh</div>
+                        </div>
+                        <div class="sign-box-right">
+                            <div class="sign-date-place" id="printSignDatePlace">Hà Nội, ngày ... tháng ... năm 2026</div>
+                            <p><strong id="printSignLeaderTitle">TRƯỞNG PHÒNG / PHỤ TRÁCH HỆ THỐNG</strong></p>
+                            <span class="sign-hint" id="printSignLeaderHint">(Ký, đóng dấu và ghi rõ họ tên)</span>
+                            <div class="sign-space"></div>
+                            <div class="sign-name" id="printSignLeaderName">....................................................</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= DANH MỤC THIẾT LẬP CHỮ KÝ BẢN IN (NGƯỜI LẬP & LÃNH ĐẠO) ================= -->
+                <section class="signature-config-card" id="signatureSection">
+                    <div class="signature-card-header">
+                        <div class="header-left">
+                            <div class="sig-header-icon">
+                                <i class="fa-solid fa-file-signature"></i>
+                            </div>
+                            <div>
+                                <div class="sig-title-wrap">
+                                    <h3 class="sig-card-title">Danh Mục Thiết Lập Chữ Ký Bản In</h3>
+                                    <span class="pill-badge pill-emerald-subtle">
+                                        <i class="fa-solid fa-circle-check"></i> Bản in A4 & PDF
+                                    </span>
+                                </div>
+                                <p class="sig-card-subtitle">
+                                    Tùy chỉnh và cập nhật thông tin <strong>Người dùng (Người lập)</strong> và <strong>Lãnh đạo ký duyệt</strong> xuất hiện ở chân trang báo cáo khi in hoặc xuất file PDF.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="sig-header-actions">
+                            <button type="button" class="btn-sig-action btn-sig-reset" id="btnResetSignatures" title="Khôi phục thông tin ký tên ban đầu">
+                                <i class="fa-solid fa-arrow-rotate-left"></i>
+                                <span>Mặc định</span>
+                            </button>
+                            <button type="button" class="btn-sig-action btn-sig-print" id="btnPreviewPrintFromSig" title="Mở hộp thoại in báo cáo với thông tin vừa cập nhật">
+                                <i class="fa-solid fa-print"></i>
+                                <span>In thử ngay</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sig-config-body">
+                        <div class="sig-columns-grid">
+                            <!-- CỘT 1: THÔNG TIN NGƯỜI LẬP (USER) -->
+                            <div class="sig-column-card sig-column-user">
+                                <div class="sig-col-badge">
+                                    <i class="fa-solid fa-user-pen text-emerald"></i>
+                                    <span>Bên Trái: Người Lập Báo Cáo</span>
+                                </div>
+                                
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgUserTitle">
+                                        Tiêu đề khối ký <span class="required">*</span>
+                                    </label>
+                                    <input type="text" id="cfgUserTitle" class="form-control" value="NGƯỜI LẬP BIỂU" placeholder="Ví dụ: NGƯỜI LẬP BIỂU hoặc NGƯỜI LẬP">
+                                </div>
+
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgUserName">
+                                        Họ và tên Người lập <span class="required">*</span>
+                                    </label>
+                                    <div class="input-with-icon">
+                                        <i class="fa-regular fa-circle-user input-icon"></i>
+                                        <input type="text" id="cfgUserName" class="form-control pl-icon" value="Nguyễn Thế Anh" placeholder="Nhập họ và tên người lập...">
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgUserHint">
+                                        Ghi chú hướng dẫn ký
+                                    </label>
+                                    <input type="text" id="cfgUserHint" class="form-control" value="(Ký và ghi rõ họ tên)" placeholder="Ví dụ: (Ký và ghi rõ họ tên)">
+                                </div>
+
+                                <div class="sig-presets-box">
+                                    <span class="preset-label">Gợi ý nhanh tên:</span>
+                                    <div class="preset-pills">
+                                        <button type="button" class="preset-btn" data-target="cfgUserName" data-val="Nguyễn Thế Anh">Nguyễn Thế Anh</button>
+                                        <button type="button" class="preset-btn" data-target="cfgUserName" data-val="Quản Trị Viên">Quản Trị Viên</button>
+                                        <button type="button" class="preset-btn" data-target="cfgUserName" data-val="Cán bộ phụ trách dữ liệu">Cán bộ phụ trách</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CỘT 2: THÔNG TIN LÃNH ĐẠO (LEADER) -->
+                            <div class="sig-column-card sig-column-leader">
+                                <div class="sig-col-badge">
+                                    <i class="fa-solid fa-stamp text-blue"></i>
+                                    <span>Bên Phải: Lãnh Đạo Ký Duyệt</span>
+                                </div>
+
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgLeaderTitle">
+                                        Tiêu đề / Chức vụ lãnh đạo <span class="required">*</span>
+                                    </label>
+                                    <input type="text" id="cfgLeaderTitle" class="form-control" value="TRƯỞNG PHÒNG / PHỤ TRÁCH HỆ THỐNG" placeholder="Ví dụ: TRƯỞNG PHÒNG / PHỤ TRÁCH HỆ THỐNG">
+                                </div>
+
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgLeaderName">
+                                        Họ và tên Lãnh đạo
+                                    </label>
+                                    <div class="input-with-icon">
+                                        <i class="fa-solid fa-user-tie input-icon"></i>
+                                        <input type="text" id="cfgLeaderName" class="form-control pl-icon" value="...................................................." placeholder="Nhập tên lãnh đạo hoặc để dấu chấm ký tươi...">
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-12">
+                                    <label class="form-label" for="cfgLeaderHint">
+                                        Ghi chú hướng dẫn ký
+                                    </label>
+                                    <input type="text" id="cfgLeaderHint" class="form-control" value="(Ký, đóng dấu và ghi rõ họ tên)" placeholder="Ví dụ: (Ký, đóng dấu và ghi rõ họ tên)">
+                                </div>
+
+                                <div class="sig-presets-box">
+                                    <span class="preset-label">Gợi ý nhanh:</span>
+                                    <div class="preset-pills">
+                                        <button type="button" class="preset-btn" data-target="cfgLeaderName" data-val="....................................................">Dòng chấm (Ký tươi)</button>
+                                        <button type="button" class="preset-btn" data-target="cfgLeaderTitle" data-val="TRƯỞNG PHÒNG PHỤ TRÁCH">Trưởng phòng</button>
+                                        <button type="button" class="preset-btn" data-target="cfgLeaderTitle" data-val="VIỆN TRƯỞNG">Viện trưởng</button>
+                                        <button type="button" class="preset-btn" data-target="cfgLeaderTitle" data-val="PHÓ VIỆN TRƯỞNG">Phó Viện trưởng</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DÒNG ĐỊA ĐIỂM & NGÀY KÝ -->
+                        <div class="sig-date-config-box">
+                            <div class="sig-date-left">
+                                <i class="fa-regular fa-calendar-check text-emerald"></i>
+                                <label for="cfgDatePlace" class="form-label m-0">Địa điểm & Ngày ký bản in:</label>
+                            </div>
+                            <div class="sig-date-right">
+                                <input type="text" id="cfgDatePlace" class="form-control" placeholder="Hà Nội, ngày ... tháng ... năm ...">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="chkAutoDate" checked>
+                                    <span>Tự động cập nhật theo ngày in thực tế</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- MÔ PHỎNG HIỂN THỊ CHÂN TRANG IN THỜI GIAN THỰC (LIVE PREVIEW) -->
+                        <div class="sig-preview-container">
+                            <div class="sig-preview-header">
+                                <i class="fa-solid fa-eye"></i>
+                                <span>Mô phỏng hiển thị trên bản in thực tế (Xem trước trực tiếp)</span>
+                            </div>
+                            <div class="sig-paper-preview">
+                                <div class="preview-sign-col preview-left">
+                                    <div class="prev-title" id="prevUserTitle">NGƯỜI LẬP BIỂU</div>
+                                    <div class="prev-hint" id="prevUserHint">(Ký và ghi rõ họ tên)</div>
+                                    <div class="prev-space">
+                                        <span class="prev-sign-placeholder">Ký tại đây</span>
+                                    </div>
+                                    <div class="prev-name" id="prevUserName">Nguyễn Thế Anh</div>
+                                </div>
+                                <div class="preview-sign-col preview-right">
+                                    <div class="prev-date" id="prevDatePlace">Hà Nội, ngày ... tháng ... năm 2026</div>
+                                    <div class="prev-title" id="prevLeaderTitle">TRƯỞNG PHÒNG / PHỤ TRÁCH HỆ THỐNG</div>
+                                    <div class="prev-hint" id="prevLeaderHint">(Ký, đóng dấu và ghi rõ họ tên)</div>
+                                    <div class="prev-space">
+                                        <span class="prev-stamp-placeholder">Ký & Đóng dấu</span>
+                                    </div>
+                                    <div class="prev-name" id="prevLeaderName">....................................................</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- NÚT LƯU CẤU HÌNH -->
+                        <div class="sig-footer-actions">
+                            <div class="save-status-info" id="sigSaveStatus">
+                                <i class="fa-solid fa-cloud-arrow-up text-emerald"></i>
+                                <span>Tự động lưu và cập nhật ngay lập tức vào bản in</span>
+                            </div>
+                            <div class="actions-group">
+                                <button type="button" class="btn-sig-save" id="btnSaveSignatures">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <span>Lưu Cấu Hình Chữ Ký</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- DANH SÁCH BẢN GHI TỪ GOOGLE SHEET (CỘT: ID, CÂU HỎI, CÂU TRẢ LỜI, THỜI GIAN) -->
+                <section class="sheet-data-section" id="sheet-data-section">
+                    <div class="sheet-section-header">
+                        <div class="header-info">
+                            <h3 class="sheet-title">
+                                <i class="fa-brands fa-google-drive text-emerald"></i>
+                                Danh Sách Bản Ghi Hỏi Đáp Từ Google Sheet
+                            </h3>
+                            <p class="sheet-subtitle">
+                                Bảng dữ liệu theo mẫu: <strong>ID, Câu hỏi, Câu trả lời, Thời gian</strong> (Tự động đọc và phân trang)
+                            </p>
+                        </div>
+                        <div class="sheet-controls">
+                            <div class="search-input-box">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="searchInput" placeholder="Tìm kiếm theo ID, Câu hỏi, Câu trả lời...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-wrapper">
+                        <table class="data-table" id="qaDataTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 170px;">ID</th>
+                                    <th style="width: 300px;">Câu hỏi</th>
+                                    <th>Câu trả lời</th>
+                                    <th style="width: 200px;">Thời gian (Cột Sheet)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="qaDataBody">
+                                <!-- Populated dynamically by app.js -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- THANH PHÂN TRANG CHO DỮ LIỆU LỚN -->
+                    <div class="pagination-toolbar" id="paginationToolbar">
+                        <div class="pagination-info" id="paginationInfo">
+                            Hiển thị 1 - 25 trong tổng số 22.944 bản ghi
+                        </div>
+                        <div class="pagination-controls">
+                            <label for="pageSizeSelect" class="page-size-label">Xem:</label>
+                            <select id="pageSizeSelect" class="custom-select select-sm">
+                                <option value="25" selected>25 dòng / trang</option>
+                                <option value="50">50 dòng / trang</option>
+                                <option value="100">100 dòng / trang</option>
+                                <option value="200">200 dòng / trang</option>
+                            </select>
+                            <button type="button" class="btn-page" id="btnFirstPage" title="Trang đầu">
+                                <i class="fa-solid fa-backward-step"></i>
+                            </button>
+                            <button type="button" class="btn-page" id="btnPrevPage" title="Trang trước">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span class="page-current-indicator" id="pageIndicator">Trang 1 / 1</span>
+                            <button type="button" class="btn-page" id="btnNextPage" title="Trang sau">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <button type="button" class="btn-page" id="btnLastPage" title="Trang cuối">
+                                <i class="fa-solid fa-forward-step"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- QUICK ACTIONS BAR -->
+                <div class="quick-actions-bar">
+                    <span class="quick-action-title">Thao Tác Nhanh</span>
+                    <div class="action-buttons-wrap">
+                        <button class="btn-quick-emerald" id="quickPrintBtn">
+                            <i class="fa-solid fa-print"></i> In Báo Cáo 12 Tháng
+                        </button>
+                        <button class="btn-quick-emerald" id="quickAddBtn">
+                            <i class="fa-solid fa-plus"></i> Thêm câu hỏi mới (Realtime)
+                        </button>
+                        <button class="btn-quick-emerald" id="quickSyncBtn">
+                            <i class="fa-solid fa-arrows-rotate"></i> Đồng bộ lại Google Sheet
+                        </button>
+                        <button class="btn-quick-light" id="quickExportDataBtn">
+                            <i class="fa-solid fa-file-excel"></i> Xuất dữ liệu CSV
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Thêm câu hỏi & câu trả lời mới thời gian thực -->
+    <div class="modal-backdrop" id="addQuestionModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-circle-plus text-emerald"></i>
+                    Thêm Câu Hỏi Mới (Cập Nhật Thời Gian Thực)
+                </h3>
+                <button class="modal-close-btn" id="closeAddModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addQuestionForm">
+                    <div class="form-group">
+                        <label for="inputQuestion" class="form-label">Nội dung câu hỏi <span class="required">*</span></label>
+                        <input type="text" id="inputQuestion" class="form-control" placeholder="Ví dụ: Lịch thi HSA năm 2026 khi nào công bố?" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputAnswer" class="form-label">Nội dung câu trả lời <span class="required">*</span></label>
+                        <textarea id="inputAnswer" class="form-control" rows="3" placeholder="Nhập câu trả lời..." required></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-half">
+                            <label for="inputTimestamp" class="form-label">Mốc thời gian</label>
+                            <input type="text" id="inputTimestamp" class="form-control" placeholder="Tự động lấy thời gian thực">
+                        </div>
+                        <div class="form-group col-half">
+                            <label for="inputTargetMonth" class="form-label">Gán vào tháng</label>
+                            <select id="inputTargetMonth" class="form-control">
+                                <option value="current">Tháng hiện tại</option>
+                                <option value="1">Tháng 1</option>
+                                <option value="2">Tháng 2</option>
+                                <option value="3">Tháng 3</option>
+                                <option value="4">Tháng 4</option>
+                                <option value="5">Tháng 5</option>
+                                <option value="6">Tháng 6</option>
+                                <option value="7">Tháng 7</option>
+                                <option value="8">Tháng 8</option>
+                                <option value="9">Tháng 9</option>
+                                <option value="10">Tháng 10</option>
+                                <option value="11">Tháng 11</option>
+                                <option value="12">Tháng 12</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" id="cancelAddBtn">Hủy Bỏ</button>
+                <button type="button" class="btn-primary" id="saveQuestionBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu & Cập Nhật Biểu Đồ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="sheet_data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
