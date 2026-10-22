@@ -614,6 +614,7 @@ function applyNewFinanceRows(records, sourceName) {
     } catch(e) {}
 
     // Cập nhật UI
+    currentPage = 1;
     renderAllData();
 
     if (syncStatusTextEl) {
@@ -947,24 +948,108 @@ function renderMonthlyReportTable() {
  * 5. BẢNG DANH SÁCH GIAO DỊCH TỪ GOOGLE SHEET
  * Hiển thị chính xác các cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian
  */
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function scrollTableIntoView() {
+    const tableWrap = document.getElementById('transactionsTable');
+    if (tableWrap) {
+        tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+/**
+ * Hiển thị các nút số trang động (1, 2, 3...)
+ */
+function renderPaginationPageButtons(totalPages) {
+    const container = document.getElementById('paginationPageNumbers');
+    if (!container) return;
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let pages = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (currentPage <= 4) {
+            pages = [1, 2, 3, 4, 5, '...', totalPages];
+        } else if (currentPage >= totalPages - 3) {
+            pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        } else {
+            pages = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+        }
+    }
+
+    let html = '';
+    pages.forEach(p => {
+        if (p === '...') {
+            html += `<span style="padding: 0 4px; color: #94a3b8; font-size: 11px;">...</span>`;
+        } else {
+            const isActive = (p === currentPage);
+            html += `
+                <button type="button" class="btn-page ${isActive ? 'active' : ''}" data-page="${p}" title="Trang ${p}">
+                    ${p}
+                </button>
+            `;
+        }
+    });
+
+    container.innerHTML = html;
+
+    container.querySelectorAll('.btn-page[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pageNum = parseInt(btn.getAttribute('data-page'), 10);
+            if (pageNum && pageNum !== currentPage) {
+                currentPage = pageNum;
+                renderTransactionsTable();
+                scrollTableIntoView();
+            }
+        });
+    });
+}
+
+/**
+ * 5. BẢNG DANH SÁCH GIAO DỊCH TỪ GOOGLE SHEET
+ * Hiển thị chính xác các cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian
+ */
 function renderTransactionsTable() {
     if (!transactionsDataBodyEl) return;
 
     const searchTerm = (searchInputEl ? searchInputEl.value : '').toLowerCase().trim();
+    const typeFilterVal = transactionTypeFilterEl ? transactionTypeFilterEl.value : 'all';
 
     filteredTransactions = transactionsData.filter(tx => {
+        // Lọc theo loại (income / expense)
+        if (typeFilterVal === 'income' && tx.income <= 0) return false;
+        if (typeFilterVal === 'expense' && tx.expense <= 0) return false;
+
+        // Lọc theo từ khóa tìm kiếm
         if (searchTerm) {
             const matchesId = (tx.id || '').toLowerCase().includes(searchTerm);
             const matchesTime = (tx.time || '').toLowerCase().includes(searchTerm);
             const matchesDesc = (tx.description || '').toLowerCase().includes(searchTerm);
-            return matchesId || matchesTime || matchesDesc;
+            const matchesExp = (tx.expense ? tx.expense.toString() : '').includes(searchTerm);
+            const matchesInc = (tx.income ? tx.income.toString() : '').includes(searchTerm);
+            const matchesBal = (tx.balance ? tx.balance.toString() : '').includes(searchTerm);
+            return matchesId || matchesTime || matchesDesc || matchesExp || matchesInc || matchesBal;
         }
         return true;
     });
 
     const totalRecords = filteredTransactions.length;
-    const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
     if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
 
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, totalRecords);
@@ -973,23 +1058,25 @@ function renderTransactionsTable() {
     if (pageRecords.length === 0) {
         transactionsDataBodyEl.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 24px; color: #64748b;">
-                    Không có giao dịch nào phù hợp.
+                <td colspan="6" style="text-align: center; padding: 28px 16px; color: #64748b;">
+                    <i class="fa-solid fa-magnifying-glass" style="margin-right: 6px; color: #94a3b8;"></i>
+                    Không có giao dịch nào phù hợp với bộ lọc / tìm kiếm hiện tại.
                 </td>
             </tr>
         `;
     } else {
         let html = '';
         pageRecords.forEach((tx, idx) => {
-            const isLastRow = (startIndex + idx === transactionsData.length - 1);
+            const globalIndex = startIndex + idx;
+            const isLastRow = (globalIndex === transactionsData.length - 1 && filteredTransactions.length === transactionsData.length);
             const rowHighlight = isLastRow ? 'style="background-color: #f0fdf4;"' : '';
 
             html += `
                 <tr ${rowHighlight}>
-                    <td><strong style="color: #334155; font-family: monospace;">${tx.id}</strong></td>
+                    <td><strong style="color: #334155; font-family: monospace;">${escapeHtml(tx.id)}</strong></td>
                     <td style="color: #475569; font-size: 12.5px;">
                         <i class="fa-regular fa-clock text-emerald" style="margin-right: 4px;"></i>
-                        <strong>${tx.time}</strong>
+                        <strong>${escapeHtml(tx.time)}</strong>
                     </td>
                     <td style="text-align: right;"><span class="pill-badge pill-rose">- ${formatCurrency(tx.expense)}</span></td>
                     <td style="text-align: right;"><span class="pill-badge pill-gray">${formatCurrency(tx.income)}</span></td>
@@ -998,8 +1085,8 @@ function renderTransactionsTable() {
                         ${isLastRow ? '<span class="pill-badge pill-current-month" style="margin-left: 6px; font-size: 10px;">Cuối cùng</span>' : ''}
                     </td>
                     <td>
-                        <span class="pill-badge ${isLastRow ? 'pill-green' : 'pill-gray'}">
-                            ${isLastRow ? 'Số liệu cuối cùng' : 'Khoản chi thực tế'}
+                        <span class="pill-badge ${isLastRow ? 'pill-green' : (tx.expense > 0 ? 'pill-gray' : 'pill-income')}">
+                            ${isLastRow ? 'Số liệu cuối cùng' : (escapeHtml(tx.description) || (tx.expense > 0 ? 'Khoản chi thực tế' : 'Khoản tiền tăng'))}
                         </span>
                     </td>
                 </tr>
@@ -1008,12 +1095,27 @@ function renderTransactionsTable() {
         transactionsDataBodyEl.innerHTML = html;
     }
 
+    // Cập nhật thông tin phân trang chuẩn xác
     if (paginationInfoEl) {
-        paginationInfoEl.textContent = `Hiển thị ${pageRecords.length} trong tổng số ${totalRecords} dòng từ Google Sheet`;
+        if (totalRecords === 0) {
+            paginationInfoEl.textContent = 'Không tìm thấy giao dịch nào';
+        } else {
+            paginationInfoEl.textContent = `Hiển thị ${(startIndex + 1).toLocaleString('vi-VN')} - ${endIndex.toLocaleString('vi-VN')} trong tổng số ${totalRecords.toLocaleString('vi-VN')} giao dịch`;
+        }
     }
+
     if (pageIndicatorEl) {
         pageIndicatorEl.textContent = `Trang ${currentPage} / ${totalPages}`;
     }
+
+    // Cập nhật trạng thái disabled của các nút chuyển trang
+    if (btnFirstPageEl) btnFirstPageEl.disabled = (currentPage <= 1 || totalRecords === 0);
+    if (btnPrevPageEl) btnPrevPageEl.disabled = (currentPage <= 1 || totalRecords === 0);
+    if (btnNextPageEl) btnNextPageEl.disabled = (currentPage >= totalPages || totalRecords === 0);
+    if (btnLastPageEl) btnLastPageEl.disabled = (currentPage >= totalPages || totalRecords === 0);
+
+    // Vẽ các nút số trang
+    renderPaginationPageButtons(totalPages);
 }
 
 /**
@@ -1242,6 +1344,7 @@ function initEventListeners() {
     if (yearFilterEl) {
         yearFilterEl.addEventListener('change', (e) => {
             currentYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            currentPage = 1;
             renderAllData();
         });
     }
@@ -1249,6 +1352,7 @@ function initEventListeners() {
     if (monthFilterEl) {
         monthFilterEl.addEventListener('change', (e) => {
             selectedMonth = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            currentPage = 1;
             renderAllData();
         });
     }
@@ -1344,6 +1448,71 @@ function initEventListeners() {
         searchInputEl.addEventListener('input', () => {
             currentPage = 1;
             renderTransactionsTable();
+        });
+    }
+
+    // Bộ lọc loại giao dịch (Tất cả / Thu / Chi)
+    if (transactionTypeFilterEl) {
+        transactionTypeFilterEl.addEventListener('change', () => {
+            currentPage = 1;
+            renderTransactionsTable();
+        });
+    }
+
+    // Phân trang: Thay đổi số dòng trên 1 trang
+    if (pageSizeSelectEl) {
+        pageSizeSelectEl.addEventListener('change', (e) => {
+            pageSize = parseInt(e.target.value, 10) || 25;
+            currentPage = 1;
+            renderTransactionsTable();
+        });
+    }
+
+    // Phân trang: Nút Trang đầu
+    if (btnFirstPageEl) {
+        btnFirstPageEl.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage = 1;
+                renderTransactionsTable();
+                scrollTableIntoView();
+            }
+        });
+    }
+
+    // Phân trang: Nút Trang trước
+    if (btnPrevPageEl) {
+        btnPrevPageEl.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTransactionsTable();
+                scrollTableIntoView();
+            }
+        });
+    }
+
+    // Phân trang: Nút Trang sau
+    if (btnNextPageEl) {
+        btnNextPageEl.addEventListener('click', () => {
+            const totalRecords = filteredTransactions.length;
+            const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTransactionsTable();
+                scrollTableIntoView();
+            }
+        });
+    }
+
+    // Phân trang: Nút Trang cuối
+    if (btnLastPageEl) {
+        btnLastPageEl.addEventListener('click', () => {
+            const totalRecords = filteredTransactions.length;
+            const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+            if (currentPage < totalPages) {
+                currentPage = totalPages;
+                renderTransactionsTable();
+                scrollTableIntoView();
+            }
         });
     }
 }
