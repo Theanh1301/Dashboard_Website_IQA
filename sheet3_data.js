@@ -7,6 +7,7 @@
  * ===================================================================
  */
 
+
 const DEFAULT_SHEET3_URL = "https://docs.google.com/spreadsheets/d/1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw/edit?gid=0#gid=0";
 const DEFAULT_SHEET3_ID = "1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw";
 const DEFAULT_SHEET3_GID = "0";
@@ -33,13 +34,13 @@ const INITIAL_YEARLY_DATA = {
         { month: 3, monthName: "Tháng 3", images: 59, publishedPosts: 7, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
         { month: 4, monthName: "Tháng 4", images: 27, publishedPosts: 7, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
         { month: 5, monthName: "Tháng 5", images: 44, publishedPosts: 5, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
-        { month: 6, monthName: "Tháng 6", images: 8,  publishedPosts: 3, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
-        { month: 7, monthName: "Tháng 7", images: 9,  publishedPosts: 3, pendingPosts: 0, reports: 0, announcements: 1, categories: 2, staff: 1, pages: 0 },
+        { month: 6, monthName: "Tháng 6", images: 8, publishedPosts: 3, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
+        { month: 7, monthName: "Tháng 7", images: 9, publishedPosts: 3, pendingPosts: 0, reports: 0, announcements: 1, categories: 2, staff: 1, pages: 0 },
         { month: 8, monthName: "Tháng 8", images: 30, publishedPosts: 7, pendingPosts: 0, reports: 1, announcements: 2, categories: 1, staff: 0, pages: 1 },
-        { month: 9, monthName: "Tháng 9", images: 0,  publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 2, pages: 0 },
+        { month: 9, monthName: "Tháng 9", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 2, pages: 0 },
         { month: 10, monthName: "Tháng 10", images: 10, publishedPosts: 2, pendingPosts: 0, reports: 0, announcements: 0, categories: 5, staff: 0, pages: 5 },
-        { month: 11, monthName: "Tháng 11", images: 0,  publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
-        { month: 12, monthName: "Tháng 12", images: 0,  publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 }
+        { month: 11, monthName: "Tháng 11", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
+        { month: 12, monthName: "Tháng 12", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 }
     ],
     2027: [
         { month: 1, monthName: "Tháng 1", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
