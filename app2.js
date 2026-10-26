@@ -103,6 +103,40 @@ let monthlyStatsData = {
 // SỐ LIỆU CUỐI CÙNG CỦA CỘT SỐ TIỀN CÒN LẠI (YÊU CẦU ĐẶC BIỆT CỦA NGƯỜI DÙNG)
 let latestRemainingBalance = 43311351;
 
+// Khai báo hàm mở Modal thêm giao dịch mới ngay tại cấp cao nhất
+window.openAddTransactionModal = function() {
+    const modal = document.getElementById('addTransactionModal');
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+        modal.style.setProperty('display', 'flex', 'important');
+        modal.style.setProperty('opacity', '1', 'important');
+        modal.style.setProperty('visibility', 'visible', 'important');
+        modal.style.setProperty('z-index', '9999999', 'important');
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('inputDate');
+            if (dateInput && !dateInput.value) dateInput.value = today;
+            if (typeof updateModalPreview === 'function') updateModalPreview();
+            if (typeof updateWebhookStatusUI === 'function') updateWebhookStatusUI();
+            const amountInput = document.getElementById('inputAmount');
+            if (amountInput) setTimeout(() => amountInput.focus(), 150);
+        } catch (err) {
+            console.warn("Lỗi chuẩn bị modal:", err);
+        }
+    }
+};
+
+// Khai báo hàm đóng Modal thêm giao dịch mới ngay tại cấp cao nhất
+window.closeAddTransactionModal = function() {
+    const modal = document.getElementById('addTransactionModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('show');
+        modal.style.setProperty('display', 'none', 'important');
+    }
+};
+
 // Instance biểu đồ Chart.js
 let mainFinanceChart = null;
 let miniCompareChart = null;
@@ -230,6 +264,15 @@ function initApp() {
 
     // 2. Thử đồng bộ trực tiếp qua mạng từ Google Sheet URL
     loadDataFromGoogleSheet(currentGoogleSheetUrl, false);
+
+    // 3. Tự động mở modal nếu trang được mở với hash #add-transaction hoặc tham số ?action=add
+    if (window.location.hash === '#add-transaction' || window.location.search.includes('action=add')) {
+        setTimeout(() => {
+            if (typeof window.openAddTransactionModal === 'function') {
+                window.openAddTransactionModal();
+            }
+        }, 300);
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -355,7 +398,8 @@ function loadDataFromGoogleSheet(sheetUrl, isUserClick = false) {
     fetchViaJsonp(sheetId, gid, 8000)
         .then(records => {
             if (records && records.length > 0) {
-                applyNewFinanceRows(records, "Google Sheet (Đồng bộ trực tiếp)");
+                const finalRecords = mergeUserAddedRows(records);
+                applyNewFinanceRows(finalRecords, "Google Sheet (Đồng bộ trực tiếp)");
                 if (googleGuideBanner) {
                     googleGuideBanner.classList.remove('warning');
                     if (bannerSheetDesc) {
@@ -371,7 +415,8 @@ function loadDataFromGoogleSheet(sheetUrl, isUserClick = false) {
             fetchViaCsv(sheetId, gid)
                 .then(records => {
                     if (records && records.length > 0) {
-                        applyNewFinanceRows(records, "Google Sheet (CSV Sync)");
+                        const finalRecords = mergeUserAddedRows(records);
+                        applyNewFinanceRows(finalRecords, "Google Sheet (CSV Sync)");
                         showToast(`Đã đồng bộ thành công ${records.length} dòng từ Google Sheet CSV!`, "success");
                     }
                 })
@@ -789,27 +834,39 @@ function renderMiniCharts() {
         const txLabels = transactionsData.map(t => t.time.replace(/Thời gian \d+:\d+ ngày /i, 'Ngày '));
         const txExpenses = transactionsData.map(t => t.expense);
 
+        const txIncomes = transactionsData.map(t => t.income);
+        const hasIncome = txIncomes.some(inc => inc > 0);
+        const datasets = [
+            {
+                label: 'Số Tiền Chi',
+                data: txExpenses,
+                backgroundColor: '#f43f5e',
+                borderRadius: 3
+            }
+        ];
+        if (hasIncome) {
+            datasets.unshift({
+                label: 'Số Tiền Tăng',
+                data: txIncomes,
+                backgroundColor: '#10b981',
+                borderRadius: 3
+            });
+        }
+
         miniCompareChart = new Chart(ctx1, {
             type: 'bar',
             data: {
                 labels: txLabels,
-                datasets: [
-                    {
-                        label: 'Số Tiền Chi',
-                        data: txExpenses,
-                        backgroundColor: '#f43f5e',
-                        borderRadius: 3
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: { display: hasIncome },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => `Tiền chi: ${formatCurrency(ctx.parsed.y)}`
+                            label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
                         }
                     }
                 },
@@ -821,19 +878,25 @@ function renderMiniCharts() {
         });
     }
 
-    // Mini Chart 2: Cơ cấu dòng tiền (Đã chi vs Số tiền còn lại)
+    // Mini Chart 2: Cơ cấu dòng tiền (Đã chi vs Số tiền tăng vs Số tiền còn lại)
     const canvas2 = document.getElementById('chartMiniStructure');
     if (canvas2 && typeof Chart !== 'undefined') {
         if (miniStructureChart) miniStructureChart.destroy();
         const ctx2 = canvas2.getContext('2d');
+
+        const hasIncome = month10.income > 0;
+        const structLabels = hasIncome ? ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'] : ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
+        const structData = hasIncome ? [month10.expense, month10.income, latestRemainingBalance] : [month10.expense, latestRemainingBalance];
+        const structColors = hasIncome ? ['#f43f5e', '#10b981', '#06b6d4'] : ['#f43f5e', '#06b6d4'];
+
         miniStructureChart = new Chart(ctx2, {
             type: 'doughnut',
             data: {
-                labels: ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'],
+                labels: structLabels,
                 datasets: [
                     {
-                        data: [month10.expense, latestRemainingBalance],
-                        backgroundColor: ['#f43f5e', '#06b6d4'],
+                        data: structData,
+                        backgroundColor: structColors,
                         borderWidth: 2
                     }
                 ]
@@ -1078,14 +1141,18 @@ function renderTransactionsTable() {
                         <i class="fa-regular fa-clock text-emerald" style="margin-right: 4px;"></i>
                         <strong>${escapeHtml(tx.time)}</strong>
                     </td>
-                    <td style="text-align: right;"><span class="pill-badge pill-rose">- ${formatCurrency(tx.expense)}</span></td>
-                    <td style="text-align: right;"><span class="pill-badge pill-gray">${formatCurrency(tx.income)}</span></td>
+                    <td style="text-align: right;">
+                        ${tx.expense > 0 ? `<span class="pill-badge pill-rose">- ${formatCurrency(tx.expense)}</span>` : `<span class="pill-badge pill-gray">0 ₫</span>`}
+                    </td>
+                    <td style="text-align: right;">
+                        ${tx.income > 0 ? `<span class="pill-badge pill-income">+ ${formatCurrency(tx.income)}</span>` : `<span class="pill-badge pill-gray">0 ₫</span>`}
+                    </td>
                     <td style="text-align: right;">
                         <strong class="text-balance-metric" style="font-size: 13.5px;">${formatCurrency(tx.balance)}</strong>
                         ${isLastRow ? '<span class="pill-badge pill-current-month" style="margin-left: 6px; font-size: 10px;">Cuối cùng</span>' : ''}
                     </td>
                     <td>
-                        <span class="pill-badge ${isLastRow ? 'pill-green' : (tx.expense > 0 ? 'pill-gray' : 'pill-income')}">
+                        <span class="pill-badge ${isLastRow ? 'pill-green' : (tx.income > 0 ? 'pill-income' : 'pill-gray')}">
                             ${isLastRow ? 'Số liệu cuối cùng' : (escapeHtml(tx.description) || (tx.expense > 0 ? 'Khoản chi thực tế' : 'Khoản tiền tăng'))}
                         </span>
                     </td>
@@ -1199,6 +1266,21 @@ function exportAllTransactionsCsv() {
     downloadCsvBlob(csvContent, `Nhat_Ky_Google_Sheet_874461169.csv`);
 }
 
+/**
+ * Xuất file CSV chuẩn 4 cột chính xác như Google Sheet:
+ * Cột 1: Số tiền chi | Cột 2: Số tiền tăng | Cột 3: Số tiền còn lại | Cột 4: Thời gian
+ */
+function exportGoogleSheetRawCsv() {
+    let csvContent = '\uFEFF';
+    csvContent += `Số tiền chi,Số tiền tăng,Số tiền còn lại,Thời gian\r\n`;
+    transactionsData.forEach(tx => {
+        const expVal = tx.expense > 0 ? tx.expense : '';
+        const incVal = tx.income > 0 ? tx.income : '';
+        csvContent += `${expVal},${incVal},${tx.balance},${tx.time}\r\n`;
+    });
+    downloadCsvBlob(csvContent, `Google_Sheet_4_Cot_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
 function downloadCsvBlob(content, filename) {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -1210,32 +1292,286 @@ function downloadCsvBlob(content, filename) {
 }
 
 /**
- * Thêm giao dịch mới
+ * ===================================================================
+ * QUẢN LÝ GIAO DỊCH THU / CHI & ĐỒNG BỘ GOOGLE SHEET CHUẨN 4 CỘT:
+ * Cột 1: Số tiền chi
+ * Cột 2: Số tiền tăng
+ * Cột 3: Số tiền còn lại
+ * Cột 4: Thời gian
+ *
+ * QUY TẮC CỐT LÕI THEO YÊU CẦU:
+ * 1. Nếu là TĂNG:
+ *    - Số tiền ghi vào cột TĂNG
+ *    - Cột SỐ TIỀN CÒN LẠI = số tiền còn lại trước đó + số tiền tăng
+ *    - Cột CHI = 0
+ * 2. Nếu là CHI:
+ *    - Số tiền ghi vào cột CHI
+ *    - Cột SỐ TIỀN CÒN LẠI = số tiền còn lại trước đó - số tiền chi
+ *    - Cột TĂNG = 0
+ * 3. Ngày giờ là THỜI GIAN thêm hàng mới (Thời gian HH:mm ngày DD/MM/YYYY)
+ * ===================================================================
  */
-function handleSaveNewTransaction() {
-    const type = document.getElementById('inputType').value;
-    const amountStr = document.getElementById('inputAmount').value;
-    const desc = document.getElementById('inputDescription').value.trim();
-    const dateVal = document.getElementById('inputDate').value;
 
-    const amount = cleanMoneyToNumber(amountStr);
-    if (!amount || amount <= 0) {
-        showToast("Vui lòng nhập số tiền hợp lệ!", "warning");
+/**
+ * Định dạng chuỗi ngày giờ theo chuẩn Google Sheet
+ * Ví dụ: "Thời gian 10:45 ngày 26/10/2026"
+ */
+function getTransactionFormattedTime(customDate = null) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+
+    let dd = String(now.getDate()).padStart(2, '0');
+    let month = String(now.getMonth() + 1).padStart(2, '0');
+    let yyyy = now.getFullYear();
+
+    if (customDate) {
+        const parts = customDate.split('-');
+        if (parts.length === 3) {
+            yyyy = parts[0];
+            month = String(parseInt(parts[1], 10)).padStart(2, '0');
+            dd = String(parseInt(parts[2], 10)).padStart(2, '0');
+        }
+    }
+
+    return `Thời gian ${hh}:${mm} ngày ${dd}/${month}/${yyyy}`;
+}
+
+/**
+ * Cập nhật bảng xem trước (Live Preview) trong Modal theo đúng quy tắc người dùng
+ */
+function updateModalPreview() {
+    const typeSelect = document.getElementById('inputType');
+    const type = typeSelect ? typeSelect.value : 'income';
+    const amountInput = document.getElementById('inputAmount');
+    const amountVal = cleanMoneyToNumber(amountInput ? amountInput.value : '');
+    const dateVal = document.getElementById('inputDate')?.value;
+
+    const previewColExpense = document.getElementById('previewColExpense');
+    const previewColIncome = document.getElementById('previewColIncome');
+    const previewColBalance = document.getElementById('previewColBalance');
+    const previewColTime = document.getElementById('previewColTime');
+    const formulaRuleDesc = document.getElementById('formulaRuleDesc');
+
+    const isExpense = (type === 'expense');
+    const exp = isExpense ? amountVal : 0;
+    const inc = !isExpense ? amountVal : 0;
+    const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
+    const timeFormatted = getTransactionFormattedTime(dateVal);
+
+    if (previewColExpense) {
+        previewColExpense.textContent = exp > 0 ? `- ${formatCurrency(exp)}` : '0 ₫';
+        previewColExpense.className = exp > 0 ? 'preview-cell-value text-rose' : 'preview-cell-value';
+    }
+    if (previewColIncome) {
+        previewColIncome.textContent = inc > 0 ? `+ ${formatCurrency(inc)}` : '0 ₫';
+        previewColIncome.className = inc > 0 ? 'preview-cell-value text-emerald' : 'preview-cell-value';
+    }
+    if (previewColBalance) {
+        previewColBalance.textContent = formatCurrency(newBal);
+        previewColBalance.className = newBal >= 0 ? 'preview-cell-value text-blue' : 'preview-cell-value text-rose';
+    }
+    if (previewColTime) {
+        previewColTime.textContent = timeFormatted;
+    }
+    if (formulaRuleDesc) {
+        if (!isExpense) {
+            formulaRuleDesc.innerHTML = `Khoản <strong>TĂNG</strong>: Cột tăng = <span style="color:#059669; font-weight:700;">${formatCurrency(inc)}</span> | Cột chi = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} + ${formatCurrency(inc)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong>`;
+        } else {
+            formulaRuleDesc.innerHTML = `Khoản <strong>CHI</strong>: Cột chi = <span style="color:#e11d48; font-weight:700;">${formatCurrency(exp)}</span> | Cột tăng = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} - ${formatCurrency(exp)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong>`;
+        }
+    }
+}
+
+/**
+ * Tự động định dạng tiền tệ khi người dùng gõ số tiền
+ */
+function handleAmountInput(e) {
+    const input = e.target;
+    let raw = input.value.replace(/[^\d]/g, '');
+    if (!raw) {
+        input.value = '';
+    } else {
+        const num = parseInt(raw, 10);
+        input.value = num.toLocaleString('vi-VN');
+    }
+    updateModalPreview();
+}
+
+/**
+ * Sao chép dòng dữ liệu chuẩn 4 cột Google Sheet vào bộ nhớ tạm
+ */
+function handleCopyRowToClipboard() {
+    const typeSelect = document.getElementById('inputType');
+    const type = typeSelect ? typeSelect.value : 'income';
+    const amountVal = cleanMoneyToNumber(document.getElementById('inputAmount')?.value);
+    const dateVal = document.getElementById('inputDate')?.value;
+
+    if (!amountVal || amountVal <= 0) {
+        showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
         return;
     }
 
-    let parsedDate = null;
-    if (dateVal) {
-        const parts = dateVal.split('-');
-        parsedDate = { year: parseInt(parts[0], 10), month: parseInt(parts[1], 10), day: parseInt(parts[2], 10) };
+    const isExpense = (type === 'expense');
+    const exp = isExpense ? amountVal : 0;
+    const inc = !isExpense ? amountVal : 0;
+    const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
+    const timeFormatted = getTransactionFormattedTime(dateVal);
+
+    // Chuẩn 4 cột Google Sheet (phân tách tab để dán thẳng vào Sheet):
+    // Cột 1: Số tiền chi | Cột 2: Số tiền tăng | Cột 3: Số tiền còn lại | Cột 4: Thời gian
+    const tsvLine = `${exp === 0 ? '' : exp}\t${inc === 0 ? '' : inc}\t${newBal}\t${timeFormatted}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvLine).then(() => {
+            showToast("Đã sao chép dòng 4 cột! Bạn có thể nhấn Ctrl + V thẳng vào ô đầu tiên trong Google Sheet.", "success");
+        }).catch(() => {
+            prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        });
     } else {
-        const now = new Date();
-        parsedDate = { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+        prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+    }
+}
+
+/**
+ * Lưu giao dịch do người dùng thêm vào localStorage để không bị mất khi làm mới
+ */
+function saveUserAddedRow(tx) {
+    try {
+        let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+        userRows.push(tx);
+        localStorage.setItem('ql_finance_user_added_rows', JSON.stringify(userRows));
+    } catch (e) {}
+}
+
+/**
+ * Hợp nhất các giao dịch người dùng đã thêm với dữ liệu từ Google Sheet
+ */
+function mergeUserAddedRows(serverRecords) {
+    try {
+        let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+        if (!userRows || userRows.length === 0) return serverRecords;
+
+        // Lọc các bản ghi chưa có trên server
+        const uncommitted = userRows.filter(u => {
+            return !serverRecords.some(s => s.time === u.time && (s.expense === u.expense || s.income === u.income));
+        });
+
+        if (uncommitted.length === 0) {
+            localStorage.removeItem('ql_finance_user_added_rows');
+            return serverRecords;
+        }
+
+        localStorage.setItem('ql_finance_user_added_rows', JSON.stringify(uncommitted));
+        let runningBal = cleanMoneyToNumber(serverRecords[serverRecords.length - 1].balance);
+        const merged = [...serverRecords];
+
+        uncommitted.forEach(u => {
+            const exp = cleanMoneyToNumber(u.expense);
+            const inc = cleanMoneyToNumber(u.income);
+            runningBal = runningBal + inc - exp;
+            merged.push({
+                ...u,
+                id: `GD-0${merged.length + 1}`,
+                balance: runningBal
+            });
+        });
+
+        return merged;
+    } catch (e) {
+        return serverRecords;
+    }
+}
+
+/**
+ * Gửi dữ liệu hàng mới qua Google Apps Script Webhook để thêm thẳng vào Google Sheet
+ */
+async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
+    try {
+        await fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify(rowData)
+        });
+        showToast("Đã đồng bộ hàng mới trực tiếp vào Google Sheet của bạn!", "success");
+    } catch (err) {
+        console.warn("Lỗi gửi dữ liệu tới Google Apps Script Webhook:", err);
+        showToast("Đã lưu vào hệ thống. Chưa thể gửi tới Webhook (hãy kiểm tra URL Apps Script)!", "warning");
+    }
+}
+
+/**
+ * Cập nhật giao diện trạng thái Webhook
+ */
+function updateWebhookStatusUI() {
+    let savedUrl = '';
+    try {
+        savedUrl = localStorage.getItem('ql_google_sheet_webapp_url') || '';
+    } catch (e) {}
+    const inputWebhookUrl = document.getElementById('inputWebhookUrl');
+    const webhookStatusBadge = document.getElementById('webhookStatusBadge');
+
+    if (inputWebhookUrl) inputWebhookUrl.value = savedUrl;
+    if (webhookStatusBadge) {
+        if (savedUrl) {
+            webhookStatusBadge.textContent = "Đã kết nối Webhook";
+            webhookStatusBadge.style.background = "#dcfce7";
+            webhookStatusBadge.style.color = "#15803d";
+            webhookStatusBadge.style.borderColor = "#bbf7d0";
+        } else {
+            webhookStatusBadge.textContent = "Chưa kết nối Webhook";
+            webhookStatusBadge.style.background = "#f1f5f9";
+            webhookStatusBadge.style.color = "#64748b";
+            webhookStatusBadge.style.borderColor = "#cbd5e1";
+        }
+    }
+}
+
+/**
+ * Xử lý lưu giao dịch mới
+ */
+function handleSaveNewTransaction() {
+    const typeSelect = document.getElementById('inputType');
+    const type = typeSelect ? typeSelect.value : 'income';
+    const amountInput = document.getElementById('inputAmount');
+    const amountStr = amountInput ? amountInput.value : '';
+    const desc = (document.getElementById('inputDescription')?.value || '').trim();
+    const dateVal = document.getElementById('inputDate')?.value;
+
+    const amount = cleanMoneyToNumber(amountStr);
+    if (!amount || amount <= 0) {
+        showToast("Vui lòng nhập số tiền hợp lệ (> 0 VNĐ)!", "warning");
+        if (amountInput) amountInput.focus();
+        return;
     }
 
-    const exp = type === 'expense' ? amount : 0;
-    const inc = type === 'income' ? amount : 0;
-    const newBal = latestRemainingBalance + inc - exp;
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth() + 1;
+    let day = now.getDate();
+
+    if (dateVal) {
+        const parts = dateVal.split('-');
+        if (parts.length === 3) {
+            year = parseInt(parts[0], 10);
+            month = parseInt(parts[1], 10);
+            day = parseInt(parts[2], 10);
+        }
+    }
+
+    // QUY TẮC CHÍNH XÁC THEO YÊU CẦU:
+    // Nếu là tăng: Số tiền ghi vào cột tăng, cột số tiền còn lại = số tiền còn lại + số tiền tăng, cột chi = 0
+    // Nếu là chi: Số tiền ghi vào cột chi, cột số tiền còn lại = số tiền còn lại - số tiền chi, cột tăng = 0
+    // Ngày giờ là thời gian thêm hàng mới
+    const isExpense = (type === 'expense');
+    const exp = isExpense ? amount : 0;
+    const inc = !isExpense ? amount : 0;
+    const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
+    const timeFormatted = getTransactionFormattedTime(dateVal);
+
     latestRemainingBalance = newBal;
 
     const newTx = {
@@ -1243,22 +1579,52 @@ function handleSaveNewTransaction() {
         expense: exp,
         income: inc,
         balance: newBal,
-        time: `Thời gian 10:00 ngày ${String(parsedDate.day).padStart(2, '0')}/${String(parsedDate.month).padStart(2, '0')}/${parsedDate.year}`,
-        date: `${String(parsedDate.day).padStart(2, '0')}/${String(parsedDate.month).padStart(2, '0')}/${parsedDate.year}`,
-        description: desc || (exp > 0 ? `Chi phát sinh ${formatCurrency(exp)}` : `Thu tăng ${formatCurrency(inc)}`),
-        type: type,
-        year: parsedDate.year,
-        month: parsedDate.month
+        time: timeFormatted,
+        date: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`,
+        description: desc || (isExpense ? `Chi thanh toán ${formatCurrency(exp)}` : `Thu tăng quỹ ${formatCurrency(inc)}`),
+        type: isExpense ? 'expense' : 'income',
+        year: year,
+        month: month,
+        isUserAdded: true
     };
 
+    // 1. Cập nhật mảng giao dịch và hiển thị
     transactionsData.push(newTx);
+    saveUserAddedRow(newTx);
     applyNewFinanceRows(transactionsData, "Dữ liệu người dùng thêm mới");
 
-    if (addTransactionModal) addTransactionModal.classList.remove('active');
-    document.getElementById('inputAmount').value = '';
-    document.getElementById('inputDescription').value = '';
+    // 2. Gửi đồng bộ lên Google Sheet qua Webhook Apps Script nếu có
+    const webhookUrl = localStorage.getItem('ql_google_sheet_webapp_url') || '';
+    if (webhookUrl) {
+        showToast("Đang đồng bộ hàng mới lên Google Sheet...", "info");
+        sendRowToGoogleSheetWebhook(webhookUrl, {
+            expense: exp,
+            income: inc,
+            balance: newBal,
+            time: timeFormatted,
+            description: desc
+        });
+    } else {
+        showToast(`Đã thêm khoản ${isExpense ? 'chi' : 'tăng'} ${formatCurrency(amount)} thành công! Số tiền còn lại: ${formatCurrency(newBal)}`, "success");
+    }
 
-    showToast(`Đã thêm khoản ${type === 'expense' ? 'chi' : 'thu'} ${formatCurrency(amount)} thành công!`, "success");
+    // 3. Đóng modal triệt để và reset input
+    if (typeof window.closeAddTransactionModal === 'function') {
+        window.closeAddTransactionModal();
+    } else if (addTransactionModal) {
+        addTransactionModal.classList.remove('active');
+        addTransactionModal.classList.remove('show');
+        addTransactionModal.style.setProperty('display', 'none', 'important');
+    }
+    if (amountInput) amountInput.value = '';
+    const descInput = document.getElementById('inputDescription');
+    if (descInput) descInput.value = '';
+    if (typeof updateModalPreview === 'function') updateModalPreview();
+
+    // Cuộn tới trang cuối bảng giao dịch để người dùng nhìn thấy hàng vừa thêm
+    currentPage = Math.max(1, Math.ceil(transactionsData.length / pageSize));
+    renderTransactionsTable();
+    scrollTableIntoView();
 }
 
 /**
@@ -1398,24 +1764,128 @@ function initEventListeners() {
     if (quickPrintBtn) quickPrintBtn.addEventListener('click', handlePrintReport);
     if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportMonthlyReportCsv);
     if (quickExportDataBtn) quickExportDataBtn.addEventListener('click', exportAllTransactionsCsv);
+    const quickExportSheetCsvBtn = document.getElementById('quickExportSheetCsvBtn');
+    if (quickExportSheetCsvBtn) quickExportSheetCsvBtn.addEventListener('click', exportGoogleSheetRawCsv);
 
-    const openAddHandler = () => {
-        if (addTransactionModal) {
-            addTransactionModal.classList.add('active');
-            const today = new Date().toISOString().split('T')[0];
-            const dateInput = document.getElementById('inputDate');
-            if (dateInput) dateInput.value = today;
+    // Hàm mở Modal thêm giao dịch mới (hỗ trợ cả inline onclick và addEventListener)
+    window.openAddTransactionModal = function() {
+        const modal = document.getElementById('addTransactionModal');
+        if (modal) {
+            modal.classList.add('active');
+            modal.classList.add('show');
+            modal.style.display = 'flex';
+            modal.style.zIndex = '999999';
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const dateInput = document.getElementById('inputDate');
+                if (dateInput && !dateInput.value) dateInput.value = today;
+                updateModalPreview();
+                updateWebhookStatusUI();
+            } catch (err) {
+                console.warn("Lỗi chuẩn bị modal:", err);
+            }
         }
+    };
+
+    // Hàm đóng Modal
+    window.closeAddTransactionModal = function() {
+        const modal = document.getElementById('addTransactionModal');
+        if (modal) {
+            modal.classList.remove('active');
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+        }
+    };
+
+    const openAddHandler = (e) => {
+        if (e) e.preventDefault();
+        window.openAddTransactionModal();
     };
     if (openAddTransactionBtn) openAddTransactionBtn.addEventListener('click', openAddHandler);
     if (quickAddBtn) quickAddBtn.addEventListener('click', openAddHandler);
+    const topAddTransactionBtn = document.getElementById('topAddTransactionBtn');
+    if (topAddTransactionBtn) topAddTransactionBtn.addEventListener('click', openAddHandler);
 
-    const closeAddHandler = () => {
-        if (addTransactionModal) addTransactionModal.classList.remove('active');
+    const closeAddHandler = (e) => {
+        if (e) e.preventDefault();
+        window.closeAddTransactionModal();
     };
     if (closeAddModalBtn) closeAddModalBtn.addEventListener('click', closeAddHandler);
     if (cancelAddBtn) cancelAddBtn.addEventListener('click', closeAddHandler);
     if (saveTransactionBtn) saveTransactionBtn.addEventListener('click', handleSaveNewTransaction);
+
+    // Sự kiện cập nhật xem trước trực tiếp khi người dùng nhập dữ liệu
+    const inputTypeEl = document.getElementById('inputType');
+    if (inputTypeEl) inputTypeEl.addEventListener('change', updateModalPreview);
+
+    const inputAmountEl = document.getElementById('inputAmount');
+    if (inputAmountEl) {
+        inputAmountEl.addEventListener('input', handleAmountInput);
+    }
+
+    const inputDateEl = document.getElementById('inputDate');
+    if (inputDateEl) inputDateEl.addEventListener('change', updateModalPreview);
+
+    // Nút sao chép dòng 4 cột chuẩn Google Sheet
+    const btnCopyRowClipboard = document.getElementById('btnCopyRowClipboard');
+    if (btnCopyRowClipboard) btnCopyRowClipboard.addEventListener('click', handleCopyRowToClipboard);
+
+    // Mở / đóng accordion cấu hình Webhook
+    const toggleWebhookAccordion = document.getElementById('toggleWebhookAccordion');
+    const webhookAccordion = document.getElementById('webhookAccordion');
+    if (toggleWebhookAccordion && webhookAccordion) {
+        toggleWebhookAccordion.addEventListener('click', () => {
+            webhookAccordion.classList.toggle('open');
+        });
+    }
+
+    // Nút lưu Webhook Google Apps Script
+    const btnSaveWebhookUrl = document.getElementById('btnSaveWebhookUrl');
+    const inputWebhookUrl = document.getElementById('inputWebhookUrl');
+    if (btnSaveWebhookUrl && inputWebhookUrl) {
+        btnSaveWebhookUrl.addEventListener('click', () => {
+            const url = inputWebhookUrl.value.trim();
+            if (url) {
+                localStorage.setItem('ql_google_sheet_webapp_url', url);
+                showToast("Đã lưu Webhook Google Apps Script thành công!", "success");
+            } else {
+                localStorage.removeItem('ql_google_sheet_webapp_url');
+                showToast("Đã xóa Webhook Google Apps Script.", "info");
+            }
+            updateWebhookStatusUI();
+        });
+    }
+
+    // Modal hướng dẫn mã Google Apps Script
+    const appsScriptGuideModal = document.getElementById('appsScriptGuideModal');
+    const btnOpenAppsScriptCode = document.getElementById('btnOpenAppsScriptCode');
+    const closeAppsScriptModalBtn = document.getElementById('closeAppsScriptModalBtn');
+    const closeAppsScriptModalBtnAction = document.getElementById('closeAppsScriptModalBtnAction');
+    const btnCopyAppsScriptCode = document.getElementById('btnCopyAppsScriptCode');
+
+    if (btnOpenAppsScriptCode && appsScriptGuideModal) {
+        btnOpenAppsScriptCode.addEventListener('click', () => {
+            appsScriptGuideModal.classList.add('active');
+        });
+    }
+    const closeAppsScriptHandler = () => {
+        if (appsScriptGuideModal) appsScriptGuideModal.classList.remove('active');
+    };
+    if (closeAppsScriptModalBtn) closeAppsScriptModalBtn.addEventListener('click', closeAppsScriptHandler);
+    if (closeAppsScriptModalBtnAction) closeAppsScriptModalBtnAction.addEventListener('click', closeAppsScriptHandler);
+
+    if (btnCopyAppsScriptCode) {
+        btnCopyAppsScriptCode.addEventListener('click', () => {
+            const codeText = document.getElementById('appsScriptCodeText')?.innerText || '';
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(codeText).then(() => {
+                    showToast("Đã sao chép mã Google Apps Script vào bộ nhớ tạm!", "success");
+                });
+            } else {
+                prompt("Sao chép mã Google Apps Script bên dưới (Ctrl+C):", codeText);
+            }
+        });
+    }
 
     const openImportHandler = () => {
         if (importModal) {
