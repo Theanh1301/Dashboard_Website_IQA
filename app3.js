@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    applyUserModificationsToYearlyData();
     initClock();
     initEventListeners();
     initSignatureConfig();
@@ -225,6 +226,9 @@ function initEventListeners() {
 
     // Gắn sự kiện cho các nút thao tác nhanh
     setupQuickActionModals();
+
+    // Khởi tạo sự kiện cho Modal Cập Nhật Dữ Liệu
+    initUpdateDataModalEvents();
 }
 
 /**
@@ -367,6 +371,7 @@ async function syncDataFromGoogleSheet(isUserTriggered = false) {
 
         if (parsedData && Object.keys(parsedData).length > 0) {
             yearlyData = parsedData;
+            applyUserModificationsToYearlyData();
 
             // Lưu dữ liệu vào LocalStorage để lần mở tiếp theo tức thời
             try {
@@ -1243,6 +1248,9 @@ function renderTable(months) {
         const monthColHtml = isCurrentMonth
             ? `<strong class="text-emerald">${m.monthName}</strong>`
             : `<strong>${m.monthName}</strong>`;
+        const isYearAll = (currentYear === 'all');
+        const yearForEdit = isYearAll ? 2026 : currentYear;
+        tr.id = `reportTableRow_m${m.month}`;
 
         tr.innerHTML = `
             <td>${monthColHtml}</td>
@@ -1256,6 +1264,12 @@ function renderTable(months) {
             <td>${imagesBadge}</td>
             <td><strong>${rate}</strong></td>
             <td><span class="pill-badge ${evalClass}">${evalText}</span></td>
+            <td class="no-print" style="text-align: center;">
+                <button type="button" class="btn-row-edit" title="Cập nhật số liệu ${m.monthName}" onclick="openUpdateDataModal(${yearForEdit}, ${m.month})">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Sửa</span>
+                </button>
+            </td>
         `;
 
         tbody.appendChild(tr);
@@ -1282,6 +1296,7 @@ function renderTable(months) {
                 <td><strong>${totalImages} ảnh</strong></td>
                 <td><strong>100%</strong></td>
                 <td><span class="pill-badge pill-status-normal">+ Hoạt động bình thường</span></td>
+                <td class="no-print"></td>
             </tr>
         `;
     }
@@ -1713,3 +1728,580 @@ function initSignatureConfig() {
     }
 }
 
+/* ===================================================================
+   TRANG 3: CHỨC NĂNG CẬP NHẬT DỮ LIỆU SỐ LIỆU CMS THEO THÁNG
+   =================================================================== */
+
+const CMS_METRIC_CONFIG = [
+    { key: 'publishedPosts', name: 'Bài viết đã đăng', unit: 'bài', defaultStep: 1 },
+    { key: 'announcements', name: 'Thông báo', unit: 'thông báo', defaultStep: 1 },
+    { key: 'reports', name: 'Báo cáo', unit: 'báo cáo', defaultStep: 1 },
+    { key: 'pages', name: 'Trang', unit: 'trang', defaultStep: 1 },
+    { key: 'categories', name: 'Danh mục', unit: 'dm', defaultStep: 1 },
+    { key: 'staff', name: 'Cán bộ', unit: 'cán bộ', defaultStep: 1 },
+    { key: 'pendingPosts', name: 'Bài viết chờ đăng', unit: 'bài', defaultStep: 1 },
+    { key: 'images', name: 'Ảnh Media tải lên', unit: 'ảnh', defaultStep: 5 }
+];
+
+// Trạng thái modal cập nhật
+let modalEditYear = 2026;
+let modalEditMonth = 10;
+let modalEditMode = 'delta'; // 'delta' (+/-) hoặc 'direct' (nhập trực tiếp)
+let modalDeltas = {};
+let modalDirectValues = {};
+
+/**
+ * Phục hồi các chỉnh sửa thủ công của người dùng từ LocalStorage vào yearlyData
+ */
+function applyUserModificationsToYearlyData() {
+    const rawMods = localStorage.getItem('ql_sheet3_user_modifications');
+    if (!rawMods) return;
+    try {
+        const mods = JSON.parse(rawMods);
+        if (mods && typeof mods === 'object') {
+            Object.keys(mods).forEach(key => {
+                const parts = key.split('_');
+                if (parts.length === 2) {
+                    const yr = parseInt(parts[0], 10);
+                    const mo = parseInt(parts[1], 10);
+                    if (yearlyData[yr]) {
+                        const targetMonth = yearlyData[yr].find(item => item.month === mo);
+                        if (targetMonth) {
+                            CMS_METRIC_CONFIG.forEach(cfg => {
+                                if (mods[key][cfg.key] !== undefined) {
+                                    targetMonth[cfg.key] = mods[key][cfg.key];
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.warn("Lỗi khi phục hồi chỉnh sửa của người dùng:", e);
+    }
+}
+
+/**
+ * Lấy giá trị hiện tại của một mục trong tháng đã chọn
+ */
+function getCurrentMonthValue(year, month, key) {
+    const yearList = yearlyData[year] || [];
+    const mObj = yearList.find(item => item.month === month);
+    return mObj ? (mObj[key] || 0) : 0;
+}
+
+/**
+ * Khởi tạo sự kiện cho Modal Cập Nhật Dữ Liệu
+ */
+function initUpdateDataModalEvents() {
+    // 1. Nút mở modal từ Topbar, Toolbar, Table và Quick Actions
+    const topBtn = document.getElementById("topUpdateDataBtn");
+    if (topBtn) {
+        topBtn.addEventListener("click", () => openUpdateDataModal());
+    }
+
+    const toolbarBtn = document.getElementById("btnOpenUpdateDataModal");
+    if (toolbarBtn) {
+        toolbarBtn.addEventListener("click", () => openUpdateDataModal());
+    }
+
+    const tableBtn = document.getElementById("btnTableUpdateData");
+    if (tableBtn) {
+        tableBtn.addEventListener("click", () => openUpdateDataModal());
+    }
+
+    const quickBtn = document.getElementById("btnQuickUpdateData");
+    if (quickBtn) {
+        quickBtn.addEventListener("click", () => openUpdateDataModal());
+    }
+
+    // 2. Nút đóng modal
+    const closeBtn = document.getElementById("btnCloseUpdateDataModal");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => closeUpdateDataModal());
+    }
+
+    const cancelBtn = document.getElementById("btnCancelUpdateData");
+    if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => closeUpdateDataModal());
+    }
+
+    // Click backdrop để đóng
+    const modalBackdrop = document.getElementById("updateDataModal");
+    if (modalBackdrop) {
+        modalBackdrop.addEventListener("click", (e) => {
+            if (e.target === modalBackdrop) {
+                closeUpdateDataModal();
+            }
+        });
+    }
+
+    // 3. Dropdown chọn Năm trong modal
+    const selectYear = document.getElementById("modalSelectYear");
+    if (selectYear) {
+        selectYear.addEventListener("change", (e) => {
+            modalEditYear = parseInt(e.target.value, 10) || 2026;
+            loadMonthDataToModal(modalEditYear, modalEditMonth);
+        });
+    }
+
+    // 4. Lưới 12 nút Tháng
+    const monthBtns = document.querySelectorAll(".month-picker-btn");
+    monthBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const m = parseInt(btn.getAttribute("data-month"), 10);
+            if (m && m >= 1 && m <= 12) {
+                modalEditMonth = m;
+                monthBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                loadMonthDataToModal(modalEditYear, modalEditMonth);
+            }
+        });
+    });
+
+    // 5. Chuyển đổi chế độ (Cộng/Trừ vs Nhập trực tiếp)
+    const btnDelta = document.getElementById("btnModeDelta");
+    const btnDirect = document.getElementById("btnModeDirect");
+    const hintText = document.getElementById("modeHintText");
+
+    if (btnDelta && btnDirect) {
+        btnDelta.addEventListener("click", () => {
+            if (modalEditMode !== 'delta') {
+                modalEditMode = 'delta';
+                btnDelta.classList.add("active");
+                btnDirect.classList.remove("active");
+                if (hintText) {
+                    hintText.innerHTML = 'Chế độ <strong>Cộng thêm / Trừ bớt</strong>: nhập số lượng muốn tăng hoặc giảm (+/-), hệ thống tự tính kết quả mới.';
+                }
+                updateModalInputsForCurrentMode();
+            }
+        });
+
+        btnDirect.addEventListener("click", () => {
+            if (modalEditMode !== 'direct') {
+                modalEditMode = 'direct';
+                btnDirect.classList.add("active");
+                btnDelta.classList.remove("active");
+                if (hintText) {
+                    hintText.innerHTML = 'Chế độ <strong>Nhập trực tiếp</strong>: đặt con số tổng mới cho tháng đã chọn.';
+                }
+                updateModalInputsForCurrentMode();
+            }
+        });
+    }
+
+    // 6. Stepper [-] và [+]
+    document.querySelectorAll(".btn-stepper-minus").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const key = btn.getAttribute("data-key");
+            handleStepperChange(key, -1);
+        });
+    });
+
+    document.querySelectorAll(".btn-stepper-plus").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const key = btn.getAttribute("data-key");
+            handleStepperChange(key, 1);
+        });
+    });
+
+    // 7. Nhập trực tiếp vào ô input
+    document.querySelectorAll(".input-metric-val").forEach(input => {
+        input.addEventListener("input", () => {
+            const key = input.getAttribute("data-key");
+            const val = parseInt(input.value, 10) || 0;
+            if (modalEditMode === 'delta') {
+                modalDeltas[key] = val;
+            } else {
+                modalDirectValues[key] = Math.max(0, val);
+            }
+            updateModalCardPreview(key);
+            updateModalSummaryPreview();
+        });
+    });
+
+    // 8. Quick shortcut chips (+1, +5, -1, 0)
+    document.querySelectorAll(".quick-chip-btn").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const key = chip.getAttribute("data-key");
+            if (chip.hasAttribute("data-setzero")) {
+                if (modalEditMode === 'delta') {
+                    const currentVal = getCurrentMonthValue(modalEditYear, modalEditMonth, key);
+                    modalDeltas[key] = -currentVal;
+                } else {
+                    modalDirectValues[key] = 0;
+                }
+            } else if (chip.hasAttribute("data-delta")) {
+                const delta = parseInt(chip.getAttribute("data-delta"), 10) || 0;
+                if (modalEditMode === 'delta') {
+                    modalDeltas[key] = (modalDeltas[key] || 0) + delta;
+                } else {
+                    modalDirectValues[key] = Math.max(0, (modalDirectValues[key] || 0) + delta);
+                }
+            }
+            updateModalCardInput(key);
+            updateModalCardPreview(key);
+            updateModalSummaryPreview();
+        });
+    });
+
+    // 9. Nút Khôi phục dữ liệu gốc tháng này
+    const btnReset = document.getElementById("btnResetMonthData");
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            handleResetCurrentMonth();
+        });
+    }
+
+    // 10. Nút Xác nhận & Lưu
+    const btnSave = document.getElementById("btnSaveUpdateData");
+    if (btnSave) {
+        btnSave.addEventListener("click", () => {
+            handleSaveUpdateData();
+        });
+    }
+}
+
+/**
+ * Mở modal Cập Nhật Dữ Liệu
+ */
+function openUpdateDataModal(targetYear, targetMonth) {
+    const modal = document.getElementById("updateDataModal");
+    if (!modal) return;
+
+    if (targetYear && [2025, 2026, 2027, 2028].includes(parseInt(targetYear, 10))) {
+        modalEditYear = parseInt(targetYear, 10);
+    } else {
+        modalEditYear = (currentYear === 'all') ? 2026 : currentYear;
+    }
+
+    if (targetMonth && targetMonth >= 1 && targetMonth <= 12) {
+        modalEditMonth = parseInt(targetMonth, 10);
+    } else {
+        modalEditMonth = currentMonth || 10;
+    }
+
+    // Cập nhật giá trị vào dropdown năm
+    const selectYear = document.getElementById("modalSelectYear");
+    if (selectYear) selectYear.value = String(modalEditYear);
+
+    // Cập nhật ngày ghi nhận thời gian thực
+    const dateInput = document.getElementById("modalRecordedDate");
+    if (dateInput) {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${y}-${m}-${d}`;
+    }
+
+    // Nạp dữ liệu tháng
+    loadMonthDataToModal(modalEditYear, modalEditMonth);
+
+    modal.classList.add("show");
+    modal.style.display = "flex";
+}
+
+/**
+ * Đóng modal Cập Nhật Dữ Liệu
+ */
+function closeUpdateDataModal() {
+    const modal = document.getElementById("updateDataModal");
+    if (modal) {
+        modal.classList.remove("show");
+        modal.style.display = "none";
+    }
+}
+
+/**
+ * Nạp dữ liệu của tháng vào modal
+ */
+function loadMonthDataToModal(year, month) {
+    // 1. Cập nhật nhãn tháng đang chọn
+    const activeLabel = document.getElementById("modalActiveMonthLabel");
+    if (activeLabel) {
+        activeLabel.textContent = `Tháng ${month} / Năm ${year}`;
+    }
+
+    // 2. Active button tháng trên grid
+    const monthBtns = document.querySelectorAll(".month-picker-btn");
+    monthBtns.forEach(btn => {
+        const m = parseInt(btn.getAttribute("data-month"), 10);
+        if (m === month) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+
+    // 3. Khởi tạo giá trị ban đầu cho 8 mục
+    modalDeltas = {};
+    modalDirectValues = {};
+
+    CMS_METRIC_CONFIG.forEach(cfg => {
+        const currentVal = getCurrentMonthValue(year, month, cfg.key);
+        modalDeltas[cfg.key] = 0;
+        modalDirectValues[cfg.key] = currentVal;
+
+        // Cập nhật badge hiện tại
+        const badge = document.getElementById(`badgeCurrent_${cfg.key}`);
+        if (badge) {
+            badge.textContent = `Hiện tại: ${currentVal} ${cfg.unit}`;
+        }
+
+        updateModalCardInput(cfg.key);
+        updateModalCardPreview(cfg.key);
+    });
+
+    updateModalSummaryPreview();
+}
+
+/**
+ * Chuyển đổi hiển thị input theo chế độ
+ */
+function updateModalInputsForCurrentMode() {
+    CMS_METRIC_CONFIG.forEach(cfg => {
+        updateModalCardInput(cfg.key);
+        updateModalCardPreview(cfg.key);
+    });
+    updateModalSummaryPreview();
+}
+
+/**
+ * Cập nhật giá trị hiển thị trong ô input
+ */
+function updateModalCardInput(key) {
+    const input = document.getElementById(`input_${key}`);
+    if (!input) return;
+    if (modalEditMode === 'delta') {
+        const delta = modalDeltas[key] || 0;
+        input.value = delta > 0 ? `+${delta}` : delta;
+    } else {
+        input.value = modalDirectValues[key] !== undefined ? modalDirectValues[key] : 0;
+    }
+}
+
+/**
+ * Cập nhật preview kết quả sau thay đổi cho từng thẻ
+ */
+function updateModalCardPreview(key) {
+    const cfg = CMS_METRIC_CONFIG.find(c => c.key === key);
+    if (!cfg) return;
+
+    const currentVal = getCurrentMonthValue(modalEditYear, modalEditMonth, key);
+    let newVal = currentVal;
+    let delta = 0;
+
+    if (modalEditMode === 'delta') {
+        delta = modalDeltas[key] || 0;
+        newVal = Math.max(0, currentVal + delta);
+        delta = newVal - currentVal;
+    } else {
+        newVal = Math.max(0, modalDirectValues[key] !== undefined ? modalDirectValues[key] : currentVal);
+        delta = newVal - currentVal;
+    }
+
+    const prevEl = document.getElementById(`preview_${key}`);
+    if (prevEl) {
+        prevEl.textContent = `${newVal} ${cfg.unit}`;
+    }
+
+    const diffEl = document.getElementById(`diff_${key}`);
+    if (diffEl) {
+        if (delta > 0) {
+            diffEl.textContent = `+${delta}`;
+            diffEl.className = "metric-diff-badge diff-positive";
+        } else if (delta < 0) {
+            diffEl.textContent = `${delta}`;
+            diffEl.className = "metric-diff-badge diff-negative";
+        } else {
+            diffEl.textContent = "0";
+            diffEl.className = "metric-diff-badge diff-neutral";
+        }
+    }
+}
+
+/**
+ * Xử lý khi nhấn nút Stepper [-] hoặc [+]
+ */
+function handleStepperChange(key, stepSign) {
+    const cfg = CMS_METRIC_CONFIG.find(c => c.key === key);
+    const step = (cfg && cfg.defaultStep) ? cfg.defaultStep : 1;
+    const change = stepSign * step;
+
+    if (modalEditMode === 'delta') {
+        modalDeltas[key] = (modalDeltas[key] || 0) + change;
+    } else {
+        modalDirectValues[key] = Math.max(0, (modalDirectValues[key] || 0) + change);
+    }
+
+    updateModalCardInput(key);
+    updateModalCardPreview(key);
+    updateModalSummaryPreview();
+}
+
+/**
+ * Cập nhật dòng tóm tắt thay đổi ở chân modal
+ */
+function updateModalSummaryPreview() {
+    const summaryText = document.getElementById("previewSummaryText");
+    const statusBadge = document.getElementById("previewStatusBadge");
+    if (!summaryText || !statusBadge) return;
+
+    let changes = [];
+    CMS_METRIC_CONFIG.forEach(cfg => {
+        const currentVal = getCurrentMonthValue(modalEditYear, modalEditMonth, cfg.key);
+        let newVal = currentVal;
+        if (modalEditMode === 'delta') {
+            newVal = Math.max(0, currentVal + (modalDeltas[cfg.key] || 0));
+        } else {
+            newVal = Math.max(0, modalDirectValues[cfg.key] !== undefined ? modalDirectValues[cfg.key] : currentVal);
+        }
+        const delta = newVal - currentVal;
+        if (delta !== 0) {
+            changes.push(`${cfg.name}: ${delta > 0 ? '+' : ''}${delta}`);
+        }
+    });
+
+    if (changes.length > 0) {
+        summaryText.innerHTML = `<strong>Tháng ${modalEditMonth}/${modalEditYear}:</strong> ${changes.join(' &bull; ')}`;
+        statusBadge.innerHTML = `<span style="color: #059669; font-weight: 700;">• Có ${changes.length} mục thay đổi</span>`;
+    } else {
+        summaryText.innerHTML = `Đang chọn <strong>Tháng ${modalEditMonth} / Năm ${modalEditYear}</strong>. Bấm nút [+] [-] hoặc nhập trực tiếp để điều chỉnh số liệu.`;
+        statusBadge.innerHTML = `• Chưa có thay đổi`;
+    }
+}
+
+/**
+ * Xác nhận & Lưu dữ liệu cập nhật
+ */
+function handleSaveUpdateData() {
+    if (!yearlyData[modalEditYear]) {
+        yearlyData[modalEditYear] = [];
+    }
+
+    let monthItem = yearlyData[modalEditYear].find(m => m.month === modalEditMonth);
+    if (!monthItem) {
+        monthItem = {
+            month: modalEditMonth,
+            monthName: `Tháng ${modalEditMonth}`,
+            images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0
+        };
+        yearlyData[modalEditYear].push(monthItem);
+        yearlyData[modalEditYear].sort((a, b) => a.month - b.month);
+    }
+
+    const modifiedMetrics = {};
+    let hasChanges = false;
+
+    CMS_METRIC_CONFIG.forEach(cfg => {
+        const currentVal = monthItem[cfg.key] || 0;
+        let newVal = currentVal;
+        if (modalEditMode === 'delta') {
+            newVal = Math.max(0, currentVal + (modalDeltas[cfg.key] || 0));
+        } else {
+            newVal = Math.max(0, modalDirectValues[cfg.key] !== undefined ? modalDirectValues[cfg.key] : currentVal);
+        }
+
+        if (newVal !== currentVal) {
+            hasChanges = true;
+        }
+
+        monthItem[cfg.key] = newVal;
+        modifiedMetrics[cfg.key] = newVal;
+    });
+
+    // Lưu vào userModifications
+    const modKey = `${modalEditYear}_${modalEditMonth}`;
+    let userMods = {};
+    try {
+        const saved = localStorage.getItem('ql_sheet3_user_modifications');
+        if (saved) userMods = JSON.parse(saved);
+    } catch (e) {}
+
+    const recordedDate = document.getElementById("modalRecordedDate")?.value || "";
+    userMods[modKey] = {
+        ...modifiedMetrics,
+        recordedDate: recordedDate,
+        updatedAt: new Date().toISOString()
+    };
+
+    try {
+        localStorage.setItem('ql_sheet3_user_modifications', JSON.stringify(userMods));
+        localStorage.setItem('ql_sheet3_cached_data', JSON.stringify(yearlyData));
+    } catch (lsErr) {
+        console.warn("Lỗi lưu LocalStorage:", lsErr);
+    }
+
+    // Đóng modal
+    closeUpdateDataModal();
+
+    // Làm mới toàn bộ Dashboard ngay lập tức (8 KPI cards, biểu đồ chính, 6 biểu đồ mini, bảng chi tiết)
+    renderAll();
+
+    // Highlight dòng tháng vừa được cập nhật trong bảng chi tiết
+    highlightTableRow(modalEditMonth);
+
+    // Hiển thị thông báo Toast
+    showToast(`Đã cập nhật số liệu Tháng ${modalEditMonth} / Năm ${modalEditYear} thành công!`, "success");
+}
+
+/**
+ * Khôi phục lại dữ liệu gốc của tháng
+ */
+function handleResetCurrentMonth() {
+    if (!confirm(`Bạn có chắc muốn khôi phục lại dữ liệu ban đầu của Tháng ${modalEditMonth} / Năm ${modalEditYear}? Mọi thay đổi vừa nhập sẽ được hoàn tác.`)) {
+        return;
+    }
+
+    const modKey = `${modalEditYear}_${modalEditMonth}`;
+    try {
+        const saved = localStorage.getItem('ql_sheet3_user_modifications');
+        if (saved) {
+            const userMods = JSON.parse(saved);
+            delete userMods[modKey];
+            localStorage.setItem('ql_sheet3_user_modifications', JSON.stringify(userMods));
+        }
+    } catch (e) {}
+
+    // Lấy lại dữ liệu từ INITIAL_YEARLY_DATA
+    if (INITIAL_YEARLY_DATA[modalEditYear]) {
+        const originalMonth = INITIAL_YEARLY_DATA[modalEditYear].find(m => m.month === modalEditMonth);
+        if (originalMonth && yearlyData[modalEditYear]) {
+            const currentMonthObj = yearlyData[modalEditYear].find(m => m.month === modalEditMonth);
+            if (currentMonthObj) {
+                Object.assign(currentMonthObj, originalMonth);
+            }
+        }
+    }
+
+    try {
+        localStorage.setItem('ql_sheet3_cached_data', JSON.stringify(yearlyData));
+    } catch (e) {}
+
+    loadMonthDataToModal(modalEditYear, modalEditMonth);
+    renderAll();
+    highlightTableRow(modalEditMonth);
+    showToast(`Đã khôi phục dữ liệu gốc Tháng ${modalEditMonth} / Năm ${modalEditYear}!`, "info");
+}
+
+/**
+ * Hiệu ứng highlight dòng bảng chi tiết sau khi cập nhật
+ */
+function highlightTableRow(month) {
+    const row = document.getElementById(`reportTableRow_m${month}`);
+    if (row) {
+        row.classList.remove("row-updated-highlight");
+        void row.offsetWidth; // trigger reflow
+        row.classList.add("row-updated-highlight");
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Gắn hàm toàn cục để có thể gọi từ inline onclick HTML
+window.openUpdateDataModal = openUpdateDataModal;
+window.closeUpdateDataModal = closeUpdateDataModal;
+window.handleStepperChange = handleStepperChange;
+window.handleSaveUpdateData = handleSaveUpdateData;
+window.handleResetCurrentMonth = handleResetCurrentMonth;

@@ -156,6 +156,11 @@
                         <span class="admin-badge">Admin</span>
                     </div>
 
+                    <button class="btn-topbar btn-topbar-update" id="topUpdateDataBtn" title="Cập nhật thêm số liệu vào hoặc xóa bớt số liệu các mục theo tháng">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Cập nhật dữ liệu</span>
+                    </button>
+
                     <button class="btn-topbar btn-topbar-refresh" id="topRefreshBtn" title="Làm mới & đồng bộ dữ liệu mới nhất từ Google Sheet">
                         <i class="fa-solid fa-rotate"></i>
                         <span>Làm mới</span>
@@ -314,6 +319,11 @@
                                 <option value="h2">6 tháng cuối năm (T7 - T12)</option>
                             </select>
                         </div>
+
+                        <button id="btnOpenUpdateDataModal" class="btn-action btn-update-data" title="Cập nhật thêm hoặc xóa bớt số liệu theo tháng">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Cập nhật dữ liệu</span>
+                        </button>
 
                         <button id="btnRefreshSheet" class="btn-action btn-refresh" title="Đồng bộ trực tiếp với Google Sheet">
                             <i class="fa-solid fa-arrows-rotate"></i>
@@ -486,6 +496,10 @@
                             <p class="table-card-subtitle" id="tableCardSubtitle">Tổng hợp cụ thể bài viết đã đăng, thông báo, báo cáo, trang, danh mục, bài chờ đăng và ảnh media theo từng tháng (Dữ liệu thực tế)</p>
                         </div>
                         <div class="table-actions">
+                            <button class="btn-table-update" id="btnTableUpdateData" title="Cập nhật số liệu của tháng">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                <span>Cập nhật dữ liệu</span>
+                            </button>
                             <button class="btn-config-sign" id="btnConfigSignatures" title="Cập nhật nhanh Người lập biểu & Lãnh đạo ký bản in">
                                 <i class="fa-solid fa-pen-nib"></i>
                                 <span>Đổi Người Ký In</span>
@@ -512,6 +526,7 @@
                                     <th>Ảnh Media tải lên</th>
                                     <th>Tỷ lệ xuất bản</th>
                                     <th>Đánh giá hoạt động</th>
+                                    <th class="no-print" style="width: 75px; text-align: center;">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody id="detailedTableBody">
@@ -724,6 +739,10 @@
                 <div class="quick-actions-bar" id="quick-actions">
                     <div class="quick-action-title">Thao Tác Nhanh</div>
                     <div class="action-buttons-wrap">
+                        <button class="btn-quick-emerald" id="btnQuickUpdateData" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); font-weight: 700;">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Cập nhật số liệu CMS</span>
+                        </button>
                         <button class="btn-quick-emerald" id="btnQuickMenu">
                             <i class="fa-solid fa-plus"></i>
                             <span>Thêm mục Menu trang chủ</span>
@@ -829,6 +848,351 @@
                         <button type="button" class="modal-close-btn" style="padding: 7px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Đóng</button>
                         <button type="button" id="btnSaveSheetUrl" style="padding: 7px 18px; border: 1px solid #065f46; background: #065f46; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Cập nhật & Đồng bộ</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL CẬP NHẬT DỮ LIỆU (TRANG 3) ================= -->
+    <div class="modal-backdrop" id="updateDataModal">
+        <div class="modal-dialog update-data-dialog">
+            <div class="modal-header">
+                <div>
+                    <h3>
+                        <i class="fa-solid fa-pen-to-square" style="color: #34d399;"></i>
+                        <span>Cập Nhật Số Liệu CMS & Hoạt Động Theo Tháng</span>
+                    </h3>
+                    <p>Thêm mới, cộng dồn hoặc xóa bớt số liệu cho 8 mục chỉ số chính của Viện Quản lý chất lượng & Khảo thí</p>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseUpdateDataModal" title="Đóng cửa sổ">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- KHỐI 1: CHỌN NĂM & THỜI GIAN GHI NHẬN -->
+                <div class="month-picker-banner">
+                    <div class="time-row-top">
+                        <div class="time-field-group">
+                            <label for="modalSelectYear"><i class="fa-regular fa-calendar" style="color: #059669;"></i> Năm cập nhật:</label>
+                            <select id="modalSelectYear" class="custom-select">
+                                <option value="2026" selected>Năm 2026 (Năm hiện tại)</option>
+                                <option value="2025">Năm 2025</option>
+                                <option value="2027">Năm 2027</option>
+                                <option value="2028">Năm 2028</option>
+                            </select>
+                        </div>
+
+                        <div class="time-field-group">
+                            <label for="modalRecordedDate"><i class="fa-regular fa-clock" style="color: #059669;"></i> Ngày ghi nhận:</label>
+                            <input type="date" id="modalRecordedDate" value="2026-10-26">
+                        </div>
+
+                        <div style="font-size: 11.5px; color: #64748b; font-weight: 500;">
+                            <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
+                            <span>Đang chọn: <strong id="modalActiveMonthLabel" class="text-emerald" style="font-size: 13px;">Tháng 10 / Năm 2026</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- LƯỚI 12 THÁNG ĐỂ BẤM CHỌN NHANH -->
+                    <div class="month-picker-grid" id="modalMonthPickerGrid">
+                        <button type="button" class="month-picker-btn" data-month="1"><span>Tháng 1</span><span class="month-sub">T01</span></button>
+                        <button type="button" class="month-picker-btn" data-month="2"><span>Tháng 2</span><span class="month-sub">T02</span></button>
+                        <button type="button" class="month-picker-btn" data-month="3"><span>Tháng 3</span><span class="month-sub">T03</span></button>
+                        <button type="button" class="month-picker-btn" data-month="4"><span>Tháng 4</span><span class="month-sub">T04</span></button>
+                        <button type="button" class="month-picker-btn" data-month="5"><span>Tháng 5</span><span class="month-sub">T05</span></button>
+                        <button type="button" class="month-picker-btn" data-month="6"><span>Tháng 6</span><span class="month-sub">T06</span></button>
+                        <button type="button" class="month-picker-btn" data-month="7"><span>Tháng 7</span><span class="month-sub">T07</span></button>
+                        <button type="button" class="month-picker-btn" data-month="8"><span>Tháng 8</span><span class="month-sub">T08</span></button>
+                        <button type="button" class="month-picker-btn" data-month="9"><span>Tháng 9</span><span class="month-sub">T09</span></button>
+                        <button type="button" class="month-picker-btn active" data-month="10"><span>Tháng 10</span><span class="month-sub">T10</span></button>
+                        <button type="button" class="month-picker-btn" data-month="11"><span>Tháng 11</span><span class="month-sub">T11</span></button>
+                        <button type="button" class="month-picker-btn" data-month="12"><span>Tháng 12</span><span class="month-sub">T12</span></button>
+                    </div>
+                </div>
+
+                <!-- KHỐI 2: CHẾ ĐỘ CẬP NHẬT (CỘNG/TRỪ HAY NHẬP TRỰC TIẾP) -->
+                <div class="mode-switch-bar">
+                    <div class="mode-switch-tabs">
+                        <button type="button" class="mode-tab-btn active" id="btnModeDelta">
+                            <i class="fa-solid fa-plus-minus"></i>
+                            <span>Cộng thêm / Trừ bớt (+ / -)</span>
+                        </button>
+                        <button type="button" class="mode-tab-btn" id="btnModeDirect">
+                            <i class="fa-solid fa-keyboard"></i>
+                            <span>Nhập trực tiếp số lượng mới</span>
+                        </button>
+                    </div>
+                    <div class="mode-hint-text" id="modeHintText">
+                        Chế độ <strong>Cộng thêm / Trừ bớt</strong>: nhập số lượng muốn tăng hoặc giảm (+/-), hệ thống tự tính kết quả mới.
+                    </div>
+                </div>
+
+                <!-- KHỐI 3: LƯỚI 8 THẺ CHỈ SỐ NHẬP LIỆU -->
+                <div class="update-metrics-grid">
+                    <!-- 1. BÀI VIẾT ĐÃ ĐĂNG -->
+                    <div class="metric-edit-card" data-key="publishedPosts">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #d1fae5; color: #059669;">
+                                    <i class="fa-solid fa-file-circle-check"></i>
+                                </div>
+                                <span class="metric-card-name">1. Bài viết đã đăng</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_publishedPosts">Hiện tại: 2 bài</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="publishedPosts" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_publishedPosts" data-key="publishedPosts" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="publishedPosts" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="publishedPosts" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="publishedPosts" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="publishedPosts" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="publishedPosts" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_publishedPosts">2 bài</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_publishedPosts">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. THÔNG BÁO -->
+                    <div class="metric-edit-card" data-key="announcements">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #ede9fe; color: #8b5cf6;">
+                                    <i class="fa-solid fa-bullhorn"></i>
+                                </div>
+                                <span class="metric-card-name">2. Thông báo</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_announcements">Hiện tại: 0 thông báo</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="announcements" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_announcements" data-key="announcements" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="announcements" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="announcements" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="announcements" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="announcements" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="announcements" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_announcements">0 thông báo</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_announcements">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. BÁO CÁO -->
+                    <div class="metric-edit-card" data-key="reports">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #ffe4e6; color: #e11d48;">
+                                    <i class="fa-solid fa-file-contract"></i>
+                                </div>
+                                <span class="metric-card-name">3. Báo cáo</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_reports">Hiện tại: 0 báo cáo</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="reports" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_reports" data-key="reports" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="reports" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="reports" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="reports" data-delta="3">+3</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="reports" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="reports" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_reports">0 báo cáo</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_reports">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 4. TRANG -->
+                    <div class="metric-edit-card" data-key="pages">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #cffafe; color: #0891b2;">
+                                    <i class="fa-solid fa-cubes"></i>
+                                </div>
+                                <span class="metric-card-name">4. Trang</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_pages">Hiện tại: 5 trang</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="pages" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_pages" data-key="pages" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="pages" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="pages" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="pages" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="pages" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="pages" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_pages">5 trang</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_pages">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 5. DANH MỤC -->
+                    <div class="metric-edit-card" data-key="categories">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #ffedd5; color: #ea580c;">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                </div>
+                                <span class="metric-card-name">5. Danh mục</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_categories">Hiện tại: 5 dm</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="categories" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_categories" data-key="categories" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="categories" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="categories" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="categories" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="categories" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="categories" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_categories">5 dm</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_categories">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 6. CÁN BỘ -->
+                    <div class="metric-edit-card" data-key="staff">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #fce7f3; color: #db2777;">
+                                    <i class="fa-solid fa-users"></i>
+                                </div>
+                                <span class="metric-card-name">6. Cán bộ</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_staff">Hiện tại: 0 cán bộ</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="staff" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_staff" data-key="staff" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="staff" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="staff" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="staff" data-delta="2">+2</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="staff" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="staff" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_staff">0 cán bộ</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_staff">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 7. BÀI VIẾT CHỜ ĐĂNG -->
+                    <div class="metric-edit-card" data-key="pendingPosts">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #fef3c7; color: #d97706;">
+                                    <i class="fa-solid fa-hourglass-half"></i>
+                                </div>
+                                <span class="metric-card-name">7. Bài viết chờ đăng</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_pendingPosts">Hiện tại: 0 bài</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="pendingPosts" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_pendingPosts" data-key="pendingPosts" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="pendingPosts" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="pendingPosts" data-delta="1">+1</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="pendingPosts" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="pendingPosts" data-delta="-1">-1</button>
+                                <button type="button" class="quick-chip-btn" data-key="pendingPosts" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_pendingPosts">0 bài</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_pendingPosts">0</span>
+                        </div>
+                    </div>
+
+                    <!-- 8. ẢNH MEDIA TẢI LÊN -->
+                    <div class="metric-edit-card" data-key="images">
+                        <div class="metric-card-top">
+                            <div class="metric-label-group">
+                                <div class="metric-card-icon" style="background: #ccfbf1; color: #0d9488;">
+                                    <i class="fa-solid fa-images"></i>
+                                </div>
+                                <span class="metric-card-name">8. Ảnh Media tải lên</span>
+                            </div>
+                            <span class="metric-current-badge" id="badgeCurrent_images">Hiện tại: 10 ảnh</span>
+                        </div>
+                        <div class="metric-input-controls">
+                            <div class="metric-stepper-wrap">
+                                <button type="button" class="btn-stepper btn-stepper-minus" data-key="images" title="Giảm số lượng"><i class="fa-solid fa-minus"></i></button>
+                                <input type="number" class="input-metric-val" id="input_images" data-key="images" value="0">
+                                <button type="button" class="btn-stepper btn-stepper-plus" data-key="images" title="Tăng số lượng"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="metric-quick-chips">
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="images" data-delta="5">+5</button>
+                                <button type="button" class="quick-chip-btn chip-plus" data-key="images" data-delta="10">+10</button>
+                                <button type="button" class="quick-chip-btn chip-minus" data-key="images" data-delta="-5">-5</button>
+                                <button type="button" class="quick-chip-btn" data-key="images" data-setzero="true">0</button>
+                            </div>
+                        </div>
+                        <div class="metric-card-bottom">
+                            <span>Sau cập nhật: <strong class="metric-new-preview" id="preview_images">10 ảnh</strong></span>
+                            <span class="metric-diff-badge diff-neutral" id="diff_images">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TÓM TẮT THAY ĐỔI -->
+                <div class="preview-changes-summary">
+                    <div class="preview-summary-left">
+                        <i class="fa-solid fa-calculator text-emerald"></i>
+                        <span id="previewSummaryText">Đang chuẩn bị cập nhật cho Tháng 10/2026. Chọn các mục để điều chỉnh số liệu.</span>
+                    </div>
+                    <div style="font-size: 11.5px; color: #047857; font-weight: 600;" id="previewStatusBadge">
+                        • Chưa có thay đổi
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER CỦA MODAL -->
+            <div class="update-dialog-footer">
+                <button type="button" class="btn-reset-month" id="btnResetMonthData" title="Khôi phục lại dữ liệu mặc định ban đầu của tháng này">
+                    <i class="fa-solid fa-arrow-rotate-left"></i>
+                    <span>Khôi phục gốc tháng này</span>
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-sig-action modal-close-btn-text" id="btnCancelUpdateData" style="padding: 8px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-weight: 600; cursor: pointer;">Hủy bỏ</button>
+                    <button type="button" class="btn-confirm-save" id="btnSaveUpdateData">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Xác nhận & Lưu dữ liệu</span>
+                    </button>
                 </div>
             </div>
         </div>
