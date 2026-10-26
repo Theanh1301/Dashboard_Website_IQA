@@ -1520,6 +1520,7 @@ html, body {
     gap: 14px;
     max-height: 75vh;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .modal-footer {
@@ -2424,7 +2425,8 @@ html, body {
 }
 
 .modal-dialog-large {
-    max-width: 650px;
+    max-width: 720px;
+    width: 95%;
 }
 
 .google-guide-banner {
@@ -2511,11 +2513,11 @@ html, body {
 
 .preview-sheet-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1.85fr);
     gap: 8px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 650px) {
     .preview-sheet-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -2530,6 +2532,7 @@ html, body {
     flex-direction: column;
     gap: 4px;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 
 .preview-cell.cell-expense {
@@ -2546,6 +2549,7 @@ html, body {
 
 .preview-cell.cell-time {
     border-left: 3px solid #8b5cf6;
+    background: #fdf4ff;
 }
 
 .preview-cell-label {
@@ -2566,6 +2570,15 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.preview-cell.cell-time .preview-cell-value {
+    white-space: normal;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #581c87;
+    overflow: visible;
 }
 
 .preview-rule-badge {
@@ -2608,6 +2621,8 @@ html, body {
     color: #334155;
     user-select: none;
     transition: background 0.2s ease;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .webhook-accordion-header:hover {
