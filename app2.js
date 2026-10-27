@@ -234,6 +234,8 @@ const sidebar = document.getElementById('sidebar');
 function initApp() {
     initRealtimeClock();
     initEventListeners();
+    updateWebhookStatusUI();
+    updatePendingSyncUI();
 
     if (viewSheetLink) {
         viewSheetLink.href = currentGoogleSheetUrl;
@@ -1155,6 +1157,7 @@ function renderTransactionsTable() {
                         <span class="pill-badge ${isLastRow ? 'pill-green' : (tx.income > 0 ? 'pill-income' : 'pill-gray')}">
                             ${isLastRow ? 'Số liệu cuối cùng' : (escapeHtml(tx.description) || (tx.expense > 0 ? 'Khoản chi thực tế' : 'Khoản tiền tăng'))}
                         </span>
+                        ${tx.isUserAdded ? '<span class="pill-badge pill-amber" style="margin-left: 4px; font-size: 10px;" title="Giao dịch mới tạo trên website (chưa có trong file Google Sheet)"><i class="fa-solid fa-cloud-arrow-up"></i> Chờ vào Sheet</span>' : ''}
                     </td>
                 </tr>
             `;
@@ -1398,6 +1401,9 @@ function handleAmountInput(e) {
     updateModalPreview();
 }
 
+// Biến lưu trữ giao dịch vừa thêm gần nhất để hỗ trợ dán vào Google Sheet
+let lastAddedTransaction = null;
+
 /**
  * Sao chép dòng dữ liệu chuẩn 4 cột Google Sheet vào bộ nhớ tạm
  */
@@ -1434,6 +1440,78 @@ function handleCopyRowToClipboard() {
 }
 
 /**
+ * Sao chép dòng 4 cột và mở ngay liên kết Google Sheet để dán (Ctrl+V)
+ */
+function handleCopyAndOpenSheet() {
+    const typeSelect = document.getElementById('inputType');
+    const type = typeSelect ? typeSelect.value : 'income';
+    const amountVal = cleanMoneyToNumber(document.getElementById('inputAmount')?.value);
+    const dateVal = document.getElementById('inputDate')?.value;
+
+    if (!amountVal || amountVal <= 0) {
+        showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
+        return;
+    }
+
+    const isExpense = (type === 'expense');
+    const exp = isExpense ? amountVal : '';
+    const inc = !isExpense ? amountVal : '';
+    const newBal = isExpense ? (latestRemainingBalance - amountVal) : (latestRemainingBalance + amountVal);
+    const timeFormatted = getTransactionFormattedTime(dateVal);
+
+    const tsvLine = `${exp}\t${inc}\t${newBal}\t${timeFormatted}`;
+
+    const finishCopy = () => {
+        showToast("Đã sao chép 4 cột! Đang mở Google Sheet để bạn dán (Ctrl+V)...", "success");
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvLine).then(finishCopy).catch(() => {
+            prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+            window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+        });
+    } else {
+        prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+    }
+}
+
+/**
+ * Sao chép giao dịch vừa tạo từ Post-Add Modal và mở Google Sheet
+ */
+function handlePostAddCopyAndOpen() {
+    if (!lastAddedTransaction) {
+        showToast("Không tìm thấy thông tin giao dịch vừa thêm!", "warning");
+        return;
+    }
+    const exp = lastAddedTransaction.expense > 0 ? lastAddedTransaction.expense : '';
+    const inc = lastAddedTransaction.income > 0 ? lastAddedTransaction.income : '';
+    const bal = lastAddedTransaction.balance;
+    const time = lastAddedTransaction.time;
+
+    const tsvLine = `${exp}\t${inc}\t${bal}\t${time}`;
+
+    const finishCopy = () => {
+        showToast("Đã sao chép 4 cột! Đang mở Google Sheet...", "success");
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+        closePostAddSyncModal();
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvLine).then(finishCopy).catch(() => {
+            prompt("Sao chép 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+            window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+            closePostAddSyncModal();
+        });
+    } else {
+        prompt("Sao chép 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+        closePostAddSyncModal();
+    }
+}
+
+/**
  * Lưu giao dịch do người dùng thêm vào localStorage để không bị mất khi làm mới
  */
 function saveUserAddedRow(tx) {
@@ -1441,6 +1519,7 @@ function saveUserAddedRow(tx) {
         let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
         userRows.push(tx);
         localStorage.setItem('ql_finance_user_added_rows', JSON.stringify(userRows));
+        updatePendingSyncUI();
     } catch (e) {}
 }
 
@@ -1450,15 +1529,19 @@ function saveUserAddedRow(tx) {
 function mergeUserAddedRows(serverRecords) {
     try {
         let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
-        if (!userRows || userRows.length === 0) return serverRecords;
+        if (!userRows || userRows.length === 0) {
+            updatePendingSyncUI();
+            return serverRecords;
+        }
 
-        // Lọc các bản ghi chưa có trên server
+        // Lọc các bản ghi chưa có trên server Google Sheet
         const uncommitted = userRows.filter(u => {
             return !serverRecords.some(s => s.time === u.time && (s.expense === u.expense || s.income === u.income));
         });
 
         if (uncommitted.length === 0) {
             localStorage.removeItem('ql_finance_user_added_rows');
+            updatePendingSyncUI();
             return serverRecords;
         }
 
@@ -1473,12 +1556,15 @@ function mergeUserAddedRows(serverRecords) {
             merged.push({
                 ...u,
                 id: `GD-0${merged.length + 1}`,
-                balance: runningBal
+                balance: runningBal,
+                isUserAdded: true
             });
         });
 
+        updatePendingSyncUI();
         return merged;
     } catch (e) {
+        updatePendingSyncUI();
         return serverRecords;
     }
 }
@@ -1488,18 +1574,47 @@ function mergeUserAddedRows(serverRecords) {
  */
 async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
     try {
+        showToast("Đang đồng bộ giao dịch lên Google Sheet...", "info");
         await fetch(webhookUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8'
             },
-            body: JSON.stringify(rowData)
+            body: JSON.stringify({
+                expense: rowData.expense,
+                income: rowData.income,
+                balance: rowData.balance,
+                time: rowData.time,
+                description: rowData.description,
+                gid: DEFAULT_SHEET_GID
+            })
         });
-        showToast("Đã đồng bộ hàng mới trực tiếp vào Google Sheet của bạn!", "success");
+
+        // Xóa khỏi danh sách chờ vì đã gửi tới Webhook
+        try {
+            let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+            userRows = userRows.filter(u => u.time !== rowData.time || u.expense !== rowData.expense || u.income !== rowData.income);
+            if (userRows.length > 0) {
+                localStorage.setItem('ql_finance_user_added_rows', JSON.stringify(userRows));
+            } else {
+                localStorage.removeItem('ql_finance_user_added_rows');
+            }
+            updatePendingSyncUI();
+        } catch (e) {}
+
+        showToast("Đã đồng bộ giao dịch trực tiếp vào file Google Sheet thành công!", "success");
+
+        // Sau 2.5s, tự động làm mới để lấy số liệu cập nhật từ Google Sheet
+        setTimeout(() => {
+            loadDataFromGoogleSheet(currentGoogleSheetUrl, false);
+        }, 2500);
+
+        return true;
     } catch (err) {
         console.warn("Lỗi gửi dữ liệu tới Google Apps Script Webhook:", err);
-        showToast("Đã lưu vào hệ thống. Chưa thể gửi tới Webhook (hãy kiểm tra URL Apps Script)!", "warning");
+        showToast("Đã lưu trên website nhưng chưa thể gửi tới Webhook (hãy kiểm tra URL Apps Script)!", "warning");
+        return false;
     }
 }
 
@@ -1509,23 +1624,87 @@ async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
 function updateWebhookStatusUI() {
     let savedUrl = '';
     try {
-        savedUrl = localStorage.getItem('ql_google_sheet_webapp_url') || '';
+        savedUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
     } catch (e) {}
+
+    const isValid = Boolean(savedUrl && (savedUrl.startsWith('http://') || savedUrl.startsWith('https://')) && !savedUrl.includes('docs.google.com/spreadsheets'));
+
     const inputWebhookUrl = document.getElementById('inputWebhookUrl');
+    const inputWebhookUrlGuide = document.getElementById('inputWebhookUrlGuide');
     const webhookStatusBadge = document.getElementById('webhookStatusBadge');
+    const topbarWebhookBadge = document.getElementById('topbarWebhookBadge');
+    const topbarWebhookText = document.getElementById('topbarWebhookText');
+    const btnSyncPendingViaWebhook = document.getElementById('btnSyncPendingViaWebhook');
 
     if (inputWebhookUrl) inputWebhookUrl.value = savedUrl;
+    if (inputWebhookUrlGuide) inputWebhookUrlGuide.value = savedUrl;
+
     if (webhookStatusBadge) {
-        if (savedUrl) {
+        if (isValid) {
             webhookStatusBadge.textContent = "Đã kết nối Webhook";
             webhookStatusBadge.style.background = "#dcfce7";
             webhookStatusBadge.style.color = "#15803d";
             webhookStatusBadge.style.borderColor = "#bbf7d0";
         } else {
             webhookStatusBadge.textContent = "Chưa kết nối Webhook";
-            webhookStatusBadge.style.background = "#f1f5f9";
-            webhookStatusBadge.style.color = "#64748b";
-            webhookStatusBadge.style.borderColor = "#cbd5e1";
+            webhookStatusBadge.style.background = "#fff7ed";
+            webhookStatusBadge.style.color = "#c2410c";
+            webhookStatusBadge.style.borderColor = "#fed7aa";
+        }
+    }
+
+    if (topbarWebhookBadge && topbarWebhookText) {
+        if (isValid) {
+            topbarWebhookBadge.className = "topbar-webhook-badge connected";
+            topbarWebhookText.textContent = "Webhook: Tự động ghi Sheet";
+            topbarWebhookBadge.title = "Đã kết nối Webhook. Bấm để xem hoặc thay đổi URL";
+        } else {
+            topbarWebhookBadge.className = "topbar-webhook-badge disconnected";
+            topbarWebhookText.textContent = "Webhook: Chưa kết nối";
+            topbarWebhookBadge.title = "Chưa kết nối Webhook ghi Google Sheet. Bấm để thiết lập tự động trong 30 giây";
+        }
+    }
+
+    if (btnSyncPendingViaWebhook) {
+        btnSyncPendingViaWebhook.style.display = isValid ? 'inline-flex' : 'none';
+    }
+}
+
+/**
+ * Cập nhật giao diện các giao dịch đang chờ đồng bộ vào Google Sheet
+ */
+function updatePendingSyncUI() {
+    let userRows = [];
+    try {
+        userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+    } catch (e) {}
+
+    const btnOpenPendingModal = document.getElementById('btnOpenPendingModal');
+    const pendingCountLabel = document.getElementById('pendingCountLabel');
+
+    if (btnOpenPendingModal && pendingCountLabel) {
+        if (userRows.length > 0) {
+            btnOpenPendingModal.style.display = 'inline-flex';
+            pendingCountLabel.textContent = `${userRows.length} GD chưa vào Sheet`;
+        } else {
+            btnOpenPendingModal.style.display = 'none';
+        }
+    }
+
+    const tableBody = document.getElementById('pendingTransactionsTableBody');
+    if (tableBody) {
+        if (userRows.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">Không có giao dịch nào đang chờ đồng bộ. Tất cả dữ liệu đã khớp với Google Sheet!</td></tr>`;
+        } else {
+            tableBody.innerHTML = userRows.map(u => `
+                <tr>
+                    <td><i class="fa-regular fa-clock text-emerald" style="margin-right: 4px;"></i><strong>${escapeHtml(u.time)}</strong></td>
+                    <td style="text-align: right;">${u.expense > 0 ? `<span class="pill-badge pill-rose">- ${formatCurrency(u.expense)}</span>` : '<span class="pill-badge pill-gray">0 ₫</span>'}</td>
+                    <td style="text-align: right;">${u.income > 0 ? `<span class="pill-badge pill-income">+ ${formatCurrency(u.income)}</span>` : '<span class="pill-badge pill-gray">0 ₫</span>'}</td>
+                    <td style="text-align: right;"><strong class="text-balance-metric">${formatCurrency(u.balance)}</strong></td>
+                    <td>${escapeHtml(u.description || 'Giao dịch thêm mới')}</td>
+                </tr>
+            `).join('');
         }
     }
 }
@@ -1588,27 +1767,18 @@ function handleSaveNewTransaction() {
         isUserAdded: true
     };
 
-    // 1. Cập nhật mảng giao dịch và hiển thị
+    lastAddedTransaction = newTx;
+
+    // 1. Cập nhật mảng giao dịch và hiển thị ngay trên website
     transactionsData.push(newTx);
     saveUserAddedRow(newTx);
     applyNewFinanceRows(transactionsData, "Dữ liệu người dùng thêm mới");
 
-    // 2. Gửi đồng bộ lên Google Sheet qua Webhook Apps Script nếu có
-    const webhookUrl = localStorage.getItem('ql_google_sheet_webapp_url') || '';
-    if (webhookUrl) {
-        showToast("Đang đồng bộ hàng mới lên Google Sheet...", "info");
-        sendRowToGoogleSheetWebhook(webhookUrl, {
-            expense: exp,
-            income: inc,
-            balance: newBal,
-            time: timeFormatted,
-            description: desc
-        });
-    } else {
-        showToast(`Đã thêm khoản ${isExpense ? 'chi' : 'tăng'} ${formatCurrency(amount)} thành công! Số tiền còn lại: ${formatCurrency(newBal)}`, "success");
-    }
+    // 2. Kiểm tra Webhook để tự động ghi vào Google Sheet
+    const webhookUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
+    const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
 
-    // 3. Đóng modal triệt để và reset input
+    // Đóng modal thêm giao dịch và reset form
     if (typeof window.closeAddTransactionModal === 'function') {
         window.closeAddTransactionModal();
     } else if (addTransactionModal) {
@@ -1625,6 +1795,246 @@ function handleSaveNewTransaction() {
     currentPage = Math.max(1, Math.ceil(transactionsData.length / pageSize));
     renderTransactionsTable();
     scrollTableIntoView();
+
+    if (isWebhookValid) {
+        // Có Webhook: Tự động gửi tới Google Sheet
+        sendRowToGoogleSheetWebhook(webhookUrl, newTx);
+    } else {
+        // Chưa có Webhook: Mở modal thông báo rõ ràng kèm nút sao chép & mở Sheet để dán (Ctrl+V)
+        openPostAddSyncModal(newTx, newBal);
+    }
+}
+
+/**
+ * Modal hiển thị hướng dẫn Google Apps Script
+ */
+window.openAppsScriptGuideModal = function() {
+    const modal = document.getElementById('appsScriptGuideModal');
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+        modal.style.setProperty('display', 'flex', 'important');
+        const input = document.getElementById('inputWebhookUrlGuide');
+        if (input) input.value = localStorage.getItem('ql_google_sheet_webapp_url') || '';
+    }
+};
+
+window.closeAppsScriptGuideModal = function() {
+    const modal = document.getElementById('appsScriptGuideModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('show');
+        modal.style.setProperty('display', 'none', 'important');
+    }
+};
+
+/**
+ * Modal thông báo sau khi thêm giao dịch
+ */
+window.openPostAddSyncModal = function(tx, newBal) {
+    lastAddedTransaction = tx;
+    const modal = document.getElementById('postAddSyncModal');
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+        modal.style.setProperty('display', 'flex', 'important');
+
+        const descEl = document.getElementById('postAddTxDesc');
+        const amountEl = document.getElementById('postAddTxAmount');
+        const balEl = document.getElementById('postAddTxBalance');
+        const timeEl = document.getElementById('postAddTxTime');
+
+        const isExpense = (tx.type === 'expense');
+        const amt = isExpense ? tx.expense : tx.income;
+
+        if (descEl) descEl.textContent = tx.description || (isExpense ? 'Khoản chi mới' : 'Khoản tăng mới');
+        if (amountEl) {
+            amountEl.textContent = `${isExpense ? '-' : '+'} ${formatCurrency(amt)}`;
+            amountEl.className = isExpense ? 'text-rose' : 'text-emerald';
+        }
+        if (balEl) balEl.textContent = formatCurrency(newBal);
+        if (timeEl) timeEl.textContent = tx.time;
+    }
+};
+
+window.closePostAddSyncModal = function() {
+    const modal = document.getElementById('postAddSyncModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('show');
+        modal.style.setProperty('display', 'none', 'important');
+    }
+};
+
+/**
+ * Modal danh sách các giao dịch chờ đồng bộ vào Google Sheet
+ */
+window.openPendingTransactionsModal = function() {
+    updatePendingSyncUI();
+    const modal = document.getElementById('pendingTransactionsModal');
+    if (modal) {
+        modal.classList.add('active');
+        modal.classList.add('show');
+        modal.style.setProperty('display', 'flex', 'important');
+    }
+};
+
+window.closePendingTransactionsModal = function() {
+    const modal = document.getElementById('pendingTransactionsModal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('show');
+        modal.style.setProperty('display', 'none', 'important');
+    }
+};
+
+/**
+ * Lưu URL Webhook ngay từ Modal Hướng dẫn
+ */
+function handleSaveWebhookFromGuide() {
+    const input = document.getElementById('inputWebhookUrlGuide');
+    const url = input ? input.value.trim() : '';
+
+    if (!url) {
+        localStorage.removeItem('ql_google_sheet_webapp_url');
+        showToast("Đã xóa cấu hình Webhook.", "info");
+        updateWebhookStatusUI();
+        return;
+    }
+
+    if (url.includes('docs.google.com/spreadsheets')) {
+        showToast("Đây là link xem Google Sheet thông thường! Để tự động ghi dữ liệu, bạn cần dán URL Webhook (từ Google Apps Script hoặc n8n/Make/Zapier)!", "warning");
+        return;
+    }
+
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+        showToast("Link Webhook không hợp lệ! URL phải bắt đầu bằng https:// (ví dụ URL Web App Apps Script hoặc Webhook n8n).", "warning");
+        return;
+    }
+
+    localStorage.setItem('ql_google_sheet_webapp_url', url);
+    updateWebhookStatusUI();
+    showToast("Đã kích hoạt Webhook thành công! Các giao dịch từ nay sẽ tự động ghi vào Google Sheet.", "success");
+    closeAppsScriptGuideModal();
+
+    // Kiểm tra xem có giao dịch chờ nào không, nếu có thì hỏi người dùng đồng bộ luôn
+    let userRows = [];
+    try {
+        userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+    } catch (e) {}
+
+    if (userRows.length > 0) {
+        if (confirm(`Hệ thống tìm thấy ${userRows.length} giao dịch bạn đã tạo trước đó trên website nhưng chưa có trong Google Sheet. Bạn có muốn đồng bộ tất cả vào Google Sheet ngay bây giờ không?`)) {
+            handleSyncPendingViaWebhook();
+        }
+    }
+}
+
+/**
+ * Sao chép toàn bộ các giao dịch đang chờ và mở Google Sheet để dán
+ */
+function handleCopyAllPendingAndOpenSheet() {
+    let userRows = [];
+    try {
+        userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+    } catch (e) {}
+
+    if (userRows.length === 0) {
+        showToast("Không có giao dịch nào đang chờ đồng bộ!", "info");
+        return;
+    }
+
+    const lines = userRows.map(u => {
+        const exp = u.expense > 0 ? u.expense : '';
+        const inc = u.income > 0 ? u.income : '';
+        return `${exp}\t${inc}\t${u.balance}\t${u.time}`;
+    }).join('\r\n');
+
+    const finishCopy = () => {
+        showToast(`Đã sao chép toàn bộ ${userRows.length} dòng! Đang mở Google Sheet...`, "success");
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+        closePendingTransactionsModal();
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(lines).then(finishCopy).catch(() => {
+            prompt("Sao chép các dòng dữ liệu bên dưới (Ctrl+C):", lines);
+            window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+            closePendingTransactionsModal();
+        });
+    } else {
+        prompt("Sao chép các dòng dữ liệu bên dưới (Ctrl+C):", lines);
+        window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
+        closePendingTransactionsModal();
+    }
+}
+
+/**
+ * Gửi toàn bộ các giao dịch đang chờ lên Webhook
+ */
+async function handleSyncPendingViaWebhook() {
+    const webhookUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
+    const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
+    if (!isWebhookValid) {
+        showToast("Vui lòng kết nối Webhook (Google Apps Script hoặc n8n) trước!", "warning");
+        openAppsScriptGuideModal();
+        return;
+    }
+
+    let userRows = [];
+    try {
+        userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+    } catch (e) {}
+
+    if (userRows.length === 0) {
+        showToast("Không có giao dịch nào đang chờ đồng bộ!", "info");
+        return;
+    }
+
+    showToast(`Đang đồng bộ ${userRows.length} giao dịch lên Google Sheet...`, "info");
+    try {
+        await fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
+                items: userRows.map(u => ({
+                    expense: u.expense,
+                    income: u.income,
+                    balance: u.balance,
+                    time: u.time,
+                    description: u.description
+                })),
+                gid: DEFAULT_SHEET_GID
+            })
+        });
+
+        localStorage.removeItem('ql_finance_user_added_rows');
+        updatePendingSyncUI();
+        closePendingTransactionsModal();
+        showToast(`Đã gửi thành công ${userRows.length} giao dịch lên Google Sheet! Đang tải lại...`, "success");
+        setTimeout(() => {
+            loadDataFromGoogleSheet(currentGoogleSheetUrl, false);
+        }, 2500);
+    } catch (err) {
+        console.warn("Lỗi đồng bộ hàng loạt lên Webhook:", err);
+        showToast("Lỗi gửi dữ liệu tới Webhook. Hãy kiểm tra URL Apps Script!", "warning");
+    }
+}
+
+/**
+ * Xóa danh sách giao dịch lưu tạm trên máy này
+ */
+function handleClearPendingRows() {
+    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ các giao dịch đã thêm trên máy này? (Dữ liệu gốc trên Google Sheet không bị ảnh hưởng)")) {
+        localStorage.removeItem('ql_finance_user_added_rows');
+        updatePendingSyncUI();
+        closePendingTransactionsModal();
+        loadDataFromGoogleSheet(currentGoogleSheetUrl, true);
+        showToast("Đã xóa các giao dịch tạm trên máy này.", "info");
+    }
 }
 
 /**
@@ -1846,8 +2256,28 @@ function initEventListeners() {
         btnSaveWebhookUrl.addEventListener('click', () => {
             const url = inputWebhookUrl.value.trim();
             if (url) {
+                if (url.includes('docs.google.com/spreadsheets')) {
+                    showToast("Đây là link xem Google Sheet thông thường! Để tự động ghi dữ liệu, bạn cần dán URL Webhook (từ Google Apps Script hoặc n8n/Make/Zapier)!", "warning");
+                    return;
+                }
+                if (!url.startsWith('https://') && !url.startsWith('http://')) {
+                    showToast("Link Webhook không hợp lệ! URL phải bắt đầu bằng https:// (ví dụ URL Web App Apps Script hoặc Webhook n8n).", "warning");
+                    return;
+                }
                 localStorage.setItem('ql_google_sheet_webapp_url', url);
-                showToast("Đã lưu Webhook Google Apps Script thành công!", "success");
+                updateWebhookStatusUI();
+                showToast("Đã lưu và kích hoạt Webhook thành công! Các giao dịch sẽ tự động ghi vào Google Sheet.", "success");
+
+                // Kiểm tra giao dịch chờ
+                let userRows = [];
+                try {
+                    userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
+                } catch (e) {}
+                if (userRows.length > 0) {
+                    if (confirm(`Tìm thấy ${userRows.length} giao dịch bạn đã tạo trước đó trên website nhưng chưa có trong Google Sheet. Bạn có muốn đồng bộ tất cả vào Google Sheet ngay bây giờ không?`)) {
+                        handleSyncPendingViaWebhook();
+                    }
+                }
             } else {
                 localStorage.removeItem('ql_google_sheet_webapp_url');
                 showToast("Đã xóa Webhook Google Apps Script.", "info");

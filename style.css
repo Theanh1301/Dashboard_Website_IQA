@@ -2727,6 +2727,71 @@ html, body {
 }
 
 /* ===================================================================
+   WEBHOOK & PENDING SYNC ENHANCEMENTS (INDEX2)
+   =================================================================== */
+.webhook-callout {
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-top: 10px;
+    font-size: 12px;
+}
+.webhook-callout.webhook-not-connected {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+.webhook-callout.webhook-connected {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+.badge-pending-sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.badge-pending-sync:hover {
+    background: #fde68a;
+    transform: translateY(-1px);
+}
+.topbar-webhook-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    background: #f1f5f9;
+    color: #475569;
+}
+.topbar-webhook-badge.connected {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+}
+.topbar-webhook-badge.disconnected {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+.topbar-webhook-badge:hover {
+    filter: brightness(0.96);
+    transform: translateY(-1px);
+}
+
+/* ===================================================================
    INDEX3 - QUẢN LÝ HỆ THỐNG & XUẤT BẢN THEO THÁNG
    =================================================================== */
 .stats-grid-4 {

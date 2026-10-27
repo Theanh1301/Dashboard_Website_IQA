@@ -182,6 +182,11 @@
                         <span>Xem Google Sheet</span>
                     </a>
 
+                    <button type="button" class="topbar-webhook-badge disconnected" id="topbarWebhookBadge" onclick="openAppsScriptGuideModal()" title="Nhấn để thiết lập Webhook tự động ghi vào file Google Sheet">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span id="topbarWebhookText">Webhook: Chưa kết nối</span>
+                    </button>
+
                     <button class="btn-topbar" id="topAddTransactionBtn" onclick="openAddTransactionModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: none; font-weight: 600; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35); cursor: pointer;" title="Thêm giao dịch thu chi mới">
                         <i class="fa-solid fa-circle-plus"></i>
                         <span>Thêm Giao Dịch Mới</span>
@@ -209,7 +214,10 @@
                             <span id="bannerSheetDesc">Đang kết nối tới trang tính (gid: 874461169). Nếu sheet đang để quyền "Hạn chế", bạn có thể bật "Bất kỳ ai có đường liên kết -> Người xem" để đồng bộ tự động.</span>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn-guide" id="btnOpenPendingModal" onclick="openPendingTransactionsModal()" style="background: #d97706; display: none;" title="Xem các giao dịch đã tạo trên website nhưng chưa có trong Google Sheet">
+                            <i class="fa-solid fa-clock-rotate-left"></i> <span id="pendingCountLabel">0 GD chưa vào Sheet</span>
+                        </button>
                         <button class="btn-guide" id="btnShareGuide">
                             <i class="fa-solid fa-key"></i> Hướng dẫn cấp quyền
                         </button>
@@ -656,41 +664,167 @@
                         <div class="webhook-accordion-header" id="toggleWebhookAccordion">
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <i class="fa-solid fa-cloud-arrow-up text-emerald"></i>
-                                <span>Tự Động Ghi Trực Tiếp Vào File Google Sheet Qua Apps Script Webhook</span>
+                                <span>Tự Động Ghi Vào Google Sheet (Qua Google Apps Script hoặc Webhook n8n)</span>
                             </span>
                             <span style="display: flex; align-items: center; gap: 8px;">
-                                <span class="badge-sheet-tag" id="webhookStatusBadge" style="background: #f1f5f9; color: #64748b; border-color: #cbd5e1;">Tùy chọn</span>
+                                <span class="badge-sheet-tag" id="webhookStatusBadge" style="background: #f1f5f9; color: #64748b; border-color: #cbd5e1;">Chưa kết nối</span>
                                 <i class="fa-solid fa-chevron-down webhook-arrow"></i>
                             </span>
                         </div>
                         <div class="webhook-accordion-body">
                             <p style="color: #475569; margin-bottom: 8px; line-height: 1.5;">
-                                Dán liên kết <strong>Google Apps Script Web App</strong> để mỗi khi bạn bấm nút "Lưu", hệ thống sẽ tự động thêm ngay 1 hàng mới vào file Google Sheet trên Google Drive của bạn:
+                                Dán liên kết <strong>Google Apps Script Web App</strong> HOẶC <strong>Webhook n8n</strong> để mỗi khi bạn bấm "Lưu", hệ thống sẽ tự động thêm ngay 1 hàng mới vào file Google Sheet:
                             </p>
                             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                                <input type="url" id="inputWebhookUrl" class="form-control" style="flex: 1;" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+                                <input type="url" id="inputWebhookUrl" class="form-control" style="flex: 1;" placeholder="https://script.google.com/macros/s/.../exec hoặc URL webhook n8n">
                                 <button type="button" class="btn-primary" id="btnSaveWebhookUrl" style="padding: 6px 12px; font-size: 11.5px; white-space: nowrap;">
                                     <i class="fa-solid fa-check"></i> Lưu Webhook
                                 </button>
                             </div>
                             <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
-                                <button type="button" class="btn-quick-light" id="btnOpenAppsScriptCode" style="font-size: 11px; padding: 4px 10px;">
+                                <button type="button" class="btn-quick-light" id="btnOpenAppsScriptCode" onclick="openAppsScriptGuideModal()" style="font-size: 11px; padding: 4px 10px;">
                                     <i class="fa-solid fa-code"></i> Xem &amp; Sao chép mã Apps Script (30 giây)
                                 </button>
-                                <span style="font-size: 11px; color: #94a3b8;">• Hoặc bấm "Sao chép dòng dữ liệu" bên dưới để dán thủ công</span>
+                                <span style="font-size: 11px; color: #94a3b8;">• Hoặc bấm "Sao Chép &amp; Mở Google Sheet" bên dưới để dán thủ công</span>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" id="btnCopyRowClipboard" onclick="handleCopyRowToClipboard()" title="Sao chép 4 giá trị cột để dán nhanh vào Google Sheet">
-                    <i class="fa-regular fa-copy"></i> Sao Chép Dòng Sheet
+                <button type="button" class="btn-cancel" id="btnCopyRowClipboard" onclick="handleCopyAndOpenSheet()" title="Sao chép 4 giá trị cột và mở Google Sheet để dán (Ctrl+V)">
+                    <i class="fa-regular fa-copy"></i> Sao Chép &amp; Mở Google Sheet
                 </button>
                 <button type="button" class="btn-cancel" id="cancelAddBtn" onclick="closeAddTransactionModal()">Hủy Bỏ</button>
                 <button type="button" class="btn-primary" id="saveTransactionBtn" onclick="handleSaveNewTransaction()" style="padding: 9px 18px; font-size: 13px;">
-                    <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Thêm Vào Google Sheet
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Thêm Giao Dịch
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: THÔNG BÁO ĐỒNG BỘ VÀO GOOGLE SHEET SAU KHI THÊM ================= -->
+    <div class="modal-backdrop" id="postAddSyncModal">
+        <div class="modal-dialog" style="max-width: 580px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-bottom: 1px solid #bbf7d0;">
+                <h3 class="modal-title" style="color: #15803d; font-size: 15px;">
+                    <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+                    Đã Thêm Giao Dịch Vào Website &amp; Cập Nhật Số Dư
+                </h3>
+                <button class="modal-close-btn" id="closePostAddSyncBtn" onclick="closePostAddSyncModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size: 13px; line-height: 1.6; color: #334155;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: #64748b;">Nội dung giao dịch:</span>
+                        <strong id="postAddTxDesc" style="color: #0f172a;">Giao dịch mới</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: #64748b;">Số tiền giao dịch:</span>
+                        <strong id="postAddTxAmount" class="text-rose" style="font-size: 15px;">0 ₫</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: #64748b;">Số tiền còn lại (Số dư mới):</span>
+                        <strong id="postAddTxBalance" class="text-blue" style="font-size: 15px;">0 ₫</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #64748b;">Thời gian:</span>
+                        <span id="postAddTxTime" style="color: #475569; font-weight: 500;">--</span>
+                    </div>
+                </div>
+
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; display: flex; gap: 10px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #d97706; font-size: 18px; margin-top: 2px;"></i>
+                    <div>
+                        <strong style="color: #b45309; font-size: 13px;">Giao dịch này CHƯA có trong Google Sheet</strong>
+                        <p style="margin: 4px 0 0 0; color: #78350f; font-size: 12px; line-height: 1.5;">
+                            Website chạy trên trình duyệt người dùng nên Google yêu cầu phân quyền để website có thể ghi dữ liệu vào Google Sheet. Bạn hãy chọn 1 trong 2 cách dưới đây:
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="color: #0f172a; font-size: 13px;">
+                                <i class="fa-solid fa-bolt text-emerald"></i> Cách 1 (Nhanh nhất - 5 giây): Dán thủ công
+                            </strong>
+                            <span class="badge-sheet-tag" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0;">Tiện lợi ngay</span>
+                        </div>
+                        <p style="color: #64748b; font-size: 11.5px; margin: 0 0 10px 0;">
+                            Hệ thống đã chuẩn bị sẵn 4 cột dữ liệu. Bấm nút dưới để sao chép và mở Google Sheet, sau đó chọn ô đầu tiên của dòng trống cuối cùng rồi ấn <strong>Ctrl + V</strong>.
+                        </p>
+                        <button type="button" class="btn-primary" id="btnPostAddCopyAndOpen" onclick="handlePostAddCopyAndOpen()" style="width: 100%; justify-content: center; padding: 9px; font-size: 13px;">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Sao Chép 4 Cột &amp; Mở Google Sheet Để Dán (Ctrl+V)
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="color: #0f172a; font-size: 13px;">
+                                <i class="fa-solid fa-robot text-blue"></i> Cách 2 (Tự động 100% vĩnh viễn): Kết nối Webhook (Apps Script hoặc n8n)
+                            </strong>
+                            <span class="badge-sheet-tag">Tự động hoàn toàn</span>
+                        </div>
+                        <p style="color: #64748b; font-size: 11.5px; margin: 0 0 10px 0;">
+                            Kết nối Google Apps Script có sẵn trên Sheet hoặc Webhook n8n: Mỗi khi bấm "Lưu", giao dịch sẽ tự động bay thẳng vào Google Sheet mà không cần mở file dán tay.
+                        </p>
+                        <button type="button" class="btn-quick-light" id="btnPostAddOpenAppsScript" onclick="openAppsScriptGuideModal()" style="width: 100%; justify-content: center; padding: 8px; font-size: 12px; font-weight: 600; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;">
+                            <i class="fa-solid fa-code"></i> Xem Hướng Dẫn &amp; Lấy Mã Script Kết Nối Tự Động
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; justify-content: flex-end;">
+                <button type="button" class="btn-cancel" id="btnPostAddDone" onclick="closePostAddSyncModal()">Đã Hiểu &amp; Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: DANH SÁCH GIAO DỊCH CHƯA ĐỒNG BỘ VÀO GOOGLE SHEET ================= -->
+    <div class="modal-backdrop" id="pendingTransactionsModal">
+        <div class="modal-dialog modal-dialog-large">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-clock-rotate-left text-amber"></i>
+                    Giao Dịch Đã Tạo Trên Website Nhưng Chưa Có Trong Google Sheet
+                </h3>
+                <button class="modal-close-btn" id="closePendingModalBtn" onclick="closePendingTransactionsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #78350f;">
+                    Dưới đây là các giao dịch bạn đã thêm trực tiếp trên website. Số dư trên web đã được cập nhật, nhưng các dòng này chưa được thêm vào file Google Sheet:
+                </div>
+                <div class="table-responsive-wrapper" style="max-height: 250px; overflow-y: auto; margin-bottom: 12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thời Gian</th>
+                                <th style="text-align: right;">Số Tiền Chi</th>
+                                <th style="text-align: right;">Số Tiền Tăng</th>
+                                <th style="text-align: right;">Số Dư</th>
+                                <th>Nội Dung</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTransactionsTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="btn-cancel" id="btnClearPendingRows" onclick="handleClearPendingRows()" style="color: #e11d48;" title="Xóa các giao dịch tạm này khỏi website">
+                    <i class="fa-solid fa-trash-can"></i> Xóa Lưu Tạm
+                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-primary" id="btnCopyAllPendingAndOpenSheet" onclick="handleCopyAllPendingAndOpenSheet()">
+                        <i class="fa-solid fa-copy"></i> Sao Chép Toàn Bộ &amp; Mở Google Sheet Để Dán
+                    </button>
+                    <button type="button" class="btn-primary" id="btnSyncPendingViaWebhook" onclick="handleSyncPendingViaWebhook()" style="background: #0284c7; border-color: #0284c7; display: none;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Gửi Lên Webhook
+                    </button>
+                    <button type="button" class="btn-cancel" id="closePendingModalBtnAction" onclick="closePendingTransactionsModal()">Đóng</button>
+                </div>
             </div>
         </div>
     </div>
@@ -703,44 +837,79 @@
                     <i class="fa-solid fa-code text-emerald"></i>
                     Mã Google Apps Script Tự Động Thêm Hàng Vào Google Sheet
                 </h3>
-                <button class="modal-close-btn" id="closeAppsScriptModalBtn">&times;</button>
+                <button class="modal-close-btn" id="closeAppsScriptModalBtn" onclick="closeAppsScriptGuideModal()">&times;</button>
             </div>
             <div class="modal-body" style="font-size: 12.5px; line-height: 1.6; color: #334155;">
                 <p>Thực hiện 3 bước đơn giản trên file Google Sheet của bạn để tự động hóa 100%:</p>
                 <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
-                    <li>Mở file Google Sheet, vào menu <strong>Tiện ích mở rộng (Extensions) &gt; Apps Script</strong>.</li>
-                    <li>Dán đoạn mã bên dưới vào file <code>Code.gs</code> và bấm <strong>Lưu (Ctrl + S)</strong>.</li>
-                    <li>Bấm nút <strong>Triển khai (Deploy) &gt; Tùy chọn triển khai mới (New deployment)</strong> &gt; Chọn loại <strong>Ứng dụng web (Web app)</strong> &gt; Mục <em>"Ai có quyền truy cập" (Who has access)</em> chọn <strong>"Bất kỳ ai" (Anyone)</strong> &gt; Bấm <strong>Triển khai</strong> rồi sao chép URL Web App dán vào hệ thống.</li>
+                    <li>Mở file Google Sheet (tab GID: 874461169), vào menu <strong>Tiện ích mở rộng (Extensions) &gt; Apps Script</strong>.</li>
+                    <li>Xóa toàn bộ mã cũ trong file <code>Code.gs</code>, dán đoạn mã chuẩn hóa bên dưới vào rồi bấm <strong>Lưu (Ctrl + S)</strong>.</li>
+                    <li>Bấm nút <strong>Triển khai (Deploy) &gt; Tùy chọn triển khai mới (New deployment)</strong> &gt; Chọn loại <strong>Ứng dụng web (Web app)</strong> &gt; Mục <em>"Người thực thi" (Execute as)</em> chọn <strong>"Tôi" (Me)</strong> &gt; Mục <em>"Ai có quyền truy cập" (Who has access)</em> chọn <strong>"Bất kỳ ai" (Anyone)</strong> (Rất quan trọng!) &gt; Bấm <strong>Triển khai</strong> &gt; Sao chép URL Web App dán vào ô bên dưới.</li>
                 </ol>
                 <div class="code-block-wrapper">
                     <button type="button" class="btn-copy-code" id="btnCopyAppsScriptCode">
                         <i class="fa-regular fa-copy"></i> Sao chép mã
                     </button>
-                    <pre id="appsScriptCodeText">function doPost(e) {
+                    <pre id="appsScriptCodeText">/**
+ * GOOGLE APPS SCRIPT WEB APP - TỰ ĐỘNG GHI GIAO DỊCH VÀO GOOGLE SHEET
+ * Viện Quản Lý Chất Lượng &amp; Khảo Thí (IQA)
+ * GID Trang Tính Mục Tiêu: 874461169
+ */
+
+function doPost(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheets()[0]; // Lấy trang tính đầu tiên
     var contents = e.postData ? e.postData.contents : "{}";
     var data = JSON.parse(contents);
 
-    var chi = data.expense !== undefined ? data.expense : (data.chi || 0);
-    var tang = data.income !== undefined ? data.income : (data.tang || 0);
-    var conLai = data.balance !== undefined ? data.balance : data.conLai;
-    var thoiGian = data.time || data.thoiGian || "";
+    // 1. Tìm đúng trang tính có GID là 874461169
+    var targetGid = (data &amp;&amp; data.gid) ? Number(data.gid) : 874461169;
+    var sheet = null;
+    var sheets = ss.getSheets();
+    for (var i = 0; i &lt; sheets.length; i++) {
+      if (sheets[i].getSheetId() == targetGid) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+    if (!sheet) {
+      sheet = ss.getActiveSheet() || sheets[0];
+    }
 
-    // Ghi đúng chuẩn 4 cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian
-    sheet.appendRow([
-      chi === 0 ? "" : chi,
-      tang === 0 ? "" : tang,
-      conLai,
-      thoiGian
-    ]);
+    // 2. Hỗ trợ ghi 1 hàng hoặc mảng nhiều hàng
+    var items = Array.isArray(data) ? data : (data.items ? data.items : [data]);
+    var rowsAdded = 0;
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    for (var j = 0; j &lt; items.length; j++) {
+      var item = items[j];
+      if (!item) continue;
+
+      var chi = item.expense !== undefined ? item.expense : (item.chi || 0);
+      var tang = item.income !== undefined ? item.income : (item.tang || 0);
+      var conLai = item.balance !== undefined ? item.balance : item.conLai;
+      var thoiGian = item.time || item.thoiGian || "";
+
+      // Ghi đúng chuẩn 4 cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian
+      sheet.appendRow([
+        (chi === 0 || chi === "" || chi === null) ? "" : Number(chi),
+        (tang === 0 || tang === "" || tang === null) ? "" : Number(tang),
+        (conLai === "" || conLai === null || conLai === undefined) ? "" : Number(conLai),
+        String(thoiGian)
+      ]);
+      rowsAdded++;
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "success", 
+      message: "Đã thêm " + rowsAdded + " hàng vào Google Sheet!",
+      rowsAdded: rowsAdded 
+    })).setMimeType(ContentService.MimeType.JSON);
+
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: "error", 
+      message: err.toString() 
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -748,9 +917,25 @@ function doGet(e) {
   return ContentService.createTextOutput("Webhook Google Sheet đã sẵn sàng hoạt động!");
 }</pre>
                 </div>
+
+                <!-- Ô DÁN URL WEBHOOK NGAY TRONG MODAL HƯỚNG DẪN -->
+                <div style="margin-top: 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                    <label for="inputWebhookUrlGuide" style="display: block; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                        <i class="fa-solid fa-link text-emerald"></i> Dán link Webhook tự động (Google Apps Script Web App HOẶC Webhook n8n):
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="url" id="inputWebhookUrlGuide" class="form-control" placeholder="https://script.google.com/macros/s/.../exec hoặc https://<n8n-domain>/webhook/..." style="flex: 1;">
+                        <button type="button" class="btn-primary" id="btnSaveWebhookFromGuide" onclick="handleSaveWebhookFromGuide()" style="white-space: nowrap; padding: 8px 16px;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Kích Hoạt
+                        </button>
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 6px;">
+                        <i class="fa-solid fa-circle-info text-sky"></i> Hệ thống hỗ trợ 100% tự động: Bạn có thể dùng <strong>Google Apps Script</strong> có sẵn trong Google Sheet hoặc dùng <strong>n8n Webhook</strong> (Node Webhook nhận JSON <code>{expense, income, balance, time}</code> rồi nối vào Node Google Sheets).
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-primary" id="closeAppsScriptModalBtnAction">
+                <button type="button" class="btn-primary" id="closeAppsScriptModalBtnAction" onclick="closeAppsScriptGuideModal()">
                     <i class="fa-solid fa-check"></i> Đã Hiểu &amp; Đóng
                 </button>
             </div>
@@ -852,14 +1037,19 @@ function doGet(e) {
                 if (btn2) btn2.onclick = triggerOpen;
                 if (btn3) btn3.onclick = triggerOpen;
 
-                // Đóng modal khi bấm ra ngoài phần backdrop
-                if (modal) {
-                    modal.addEventListener('click', function(e) {
-                        if (e.target === modal) {
-                            window.closeAddTransactionModal();
-                        }
-                    });
-                }
+                // Đóng các modal khi bấm ra ngoài phần backdrop
+                ['addTransactionModal', 'postAddSyncModal', 'pendingTransactionsModal', 'appsScriptGuideModal', 'importModal', 'guideModal'].forEach(function(mId) {
+                    var m = document.getElementById(mId);
+                    if (m) {
+                        m.addEventListener('click', function(e) {
+                            if (e.target === m) {
+                                m.classList.remove('active');
+                                m.classList.remove('show');
+                                m.style.setProperty('display', 'none', 'important');
+                            }
+                        });
+                    }
+                });
             }
 
             if (document.readyState === 'loading') {
@@ -871,9 +1061,14 @@ function doGet(e) {
             // Đóng bằng phím ESC
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
-                    if (typeof window.closeAddTransactionModal === 'function') {
-                        window.closeAddTransactionModal();
-                    }
+                    ['addTransactionModal', 'postAddSyncModal', 'pendingTransactionsModal', 'appsScriptGuideModal', 'importModal', 'guideModal'].forEach(function(mId) {
+                        var m = document.getElementById(mId);
+                        if (m) {
+                            m.classList.remove('active');
+                            m.classList.remove('show');
+                            m.style.setProperty('display', 'none', 'important');
+                        }
+                    });
                 }
             });
         })();
