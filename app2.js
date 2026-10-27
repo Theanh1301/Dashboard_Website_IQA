@@ -236,6 +236,7 @@ function initApp() {
     initEventListeners();
     updateWebhookStatusUI();
     updatePendingSyncUI();
+    initWebhookKeepAlive2();
 
     if (viewSheetLink) {
         viewSheetLink.href = currentGoogleSheetUrl;
@@ -509,7 +510,7 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
             resolve(parsedResults);
         };
 
-        script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&gid=${gid}`;
+        script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&gid=${gid}&t=${Date.now()}`;
         script.onerror = () => {
             cleanup();
             reject(new Error("Lỗi tải stream Google Sheet"));
@@ -522,7 +523,7 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
  * Tải stream CSV
  */
 function fetchViaCsv(sheetId, gid) {
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;
     return fetch(csvUrl)
         .then(res => {
             if (!res.ok) throw new Error("Fetch error: " + res.status);
@@ -1572,10 +1573,29 @@ function mergeUserAddedRows(serverRecords) {
 /**
  * Gửi dữ liệu hàng mới qua Google Apps Script Webhook để thêm thẳng vào Google Sheet
  */
+/**
+ * Lấy URL Webhook hiện tại (kết hợp localStorage và cấu hình mặc định)
+ */
+function getActiveWebhookUrl2() {
+    let savedUrl = '';
+    try {
+        savedUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
+    } catch (e) {}
+    if (!savedUrl && window.DEFAULT_WEBHOOK_URL_SHEET2) {
+        savedUrl = String(window.DEFAULT_WEBHOOK_URL_SHEET2).trim();
+    }
+    return savedUrl;
+}
+
+/**
+ * Gửi dữ liệu hàng mới qua Google Apps Script Webhook để thêm thẳng vào Google Sheet (chạy ngầm chống lag)
+ */
 async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
     try {
         showToast("Đang đồng bộ giao dịch lên Google Sheet...", "info");
-        await fetch(webhookUrl, {
+        
+        // Gửi ngầm (asynchronous background) - giao diện người dùng không bị đơ/lag
+        fetch(webhookUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -1589,26 +1609,16 @@ async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
                 description: rowData.description,
                 gid: DEFAULT_SHEET_GID
             })
+        }).then(() => {
+            showToast("Đã đồng bộ giao dịch trực tiếp vào file Google Sheet thành công!", "success");
+            // Sau 4s (để Google Sheets kịp flush ra GViz), tự động làm mới để lấy số liệu cập nhật từ Google Sheet
+            setTimeout(() => {
+                loadDataFromGoogleSheet(currentGoogleSheetUrl, false);
+            }, 4000);
+        }).catch(err => {
+            console.warn("Lỗi gửi dữ liệu tới Webhook:", err);
+            showToast("Đã lưu trên website nhưng gửi tới Webhook gặp trục trặc!", "warning");
         });
-
-        // Xóa khỏi danh sách chờ vì đã gửi tới Webhook
-        try {
-            let userRows = JSON.parse(localStorage.getItem('ql_finance_user_added_rows') || '[]');
-            userRows = userRows.filter(u => u.time !== rowData.time || u.expense !== rowData.expense || u.income !== rowData.income);
-            if (userRows.length > 0) {
-                localStorage.setItem('ql_finance_user_added_rows', JSON.stringify(userRows));
-            } else {
-                localStorage.removeItem('ql_finance_user_added_rows');
-            }
-            updatePendingSyncUI();
-        } catch (e) {}
-
-        showToast("Đã đồng bộ giao dịch trực tiếp vào file Google Sheet thành công!", "success");
-
-        // Sau 2.5s, tự động làm mới để lấy số liệu cập nhật từ Google Sheet
-        setTimeout(() => {
-            loadDataFromGoogleSheet(currentGoogleSheetUrl, false);
-        }, 2500);
 
         return true;
     } catch (err) {
@@ -1622,11 +1632,7 @@ async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
  * Cập nhật giao diện trạng thái Webhook
  */
 function updateWebhookStatusUI() {
-    let savedUrl = '';
-    try {
-        savedUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
-    } catch (e) {}
-
+    const savedUrl = getActiveWebhookUrl2();
     const isValid = Boolean(savedUrl && (savedUrl.startsWith('http://') || savedUrl.startsWith('https://')) && !savedUrl.includes('docs.google.com/spreadsheets'));
 
     const inputWebhookUrl = document.getElementById('inputWebhookUrl');
@@ -1668,6 +1674,18 @@ function updateWebhookStatusUI() {
     if (btnSyncPendingViaWebhook) {
         btnSyncPendingViaWebhook.style.display = isValid ? 'inline-flex' : 'none';
     }
+}
+
+/**
+ * Giữ ấm máy chủ Apps Script (Keep-Alive Ping) mỗi 4 phút để chống lag / cold start
+ */
+function initWebhookKeepAlive2() {
+    setInterval(() => {
+        const url = getActiveWebhookUrl2();
+        if (url && url.startsWith('https://script.google.com/macros/s/')) {
+            fetch(url + '?ping=keepalive', { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+        }
+    }, 4 * 60 * 1000);
 }
 
 /**
@@ -1775,7 +1793,7 @@ function handleSaveNewTransaction() {
     applyNewFinanceRows(transactionsData, "Dữ liệu người dùng thêm mới");
 
     // 2. Kiểm tra Webhook để tự động ghi vào Google Sheet
-    const webhookUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
+    const webhookUrl = getActiveWebhookUrl2();
     const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
 
     // Đóng modal thêm giao dịch và reset form
@@ -1973,7 +1991,7 @@ function handleCopyAllPendingAndOpenSheet() {
  * Gửi toàn bộ các giao dịch đang chờ lên Webhook
  */
 async function handleSyncPendingViaWebhook() {
-    const webhookUrl = (localStorage.getItem('ql_google_sheet_webapp_url') || '').trim();
+    const webhookUrl = getActiveWebhookUrl2();
     const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
     if (!isWebhookValid) {
         showToast("Vui lòng kết nối Webhook (Google Apps Script hoặc n8n) trước!", "warning");

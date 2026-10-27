@@ -899,6 +899,9 @@ function doPost(e) {
       rowsAdded++;
     }
 
+    // Ép Google Sheets ghi ngay xuống đĩa (chống lag / delay)
+    SpreadsheetApp.flush();
+
     return ContentService.createTextOutput(JSON.stringify({ 
       status: "success", 
       message: "Đã thêm " + rowsAdded + " hàng vào Google Sheet!",

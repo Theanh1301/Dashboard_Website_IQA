@@ -12,6 +12,9 @@ const DEFAULT_SHEET3_URL = "https://docs.google.com/spreadsheets/d/1Z70EDNp9lg1D
 const DEFAULT_SHEET3_ID = "1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw";
 const DEFAULT_SHEET3_GID = "0";
 
+// Cấu hình URL Webhook dự phòng vĩnh viễn Trang 3 (nếu localStorage bị xóa hoặc đổi máy/trình duyệt)
+window.DEFAULT_WEBHOOK_URL_SHEET3 = "";
+
 // Dữ liệu mặc định ban đầu được trích xuất chính xác 100% từ Google Sheet
 const INITIAL_YEARLY_DATA = {
     2025: [

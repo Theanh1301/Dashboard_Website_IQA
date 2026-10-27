@@ -1418,6 +1418,9 @@ function doPost(e) {
     // Ghi đè 8 cột từ B đến I tại dòng foundRow
     sheet.getRange(foundRow, 2, 1, 8).setValues([[img, pub, pen, rep, ann, cat, stf, pag]]);
 
+    // Ép Google Sheets ghi ngay xuống đĩa (chống lag / delay)
+    SpreadsheetApp.flush();
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       message: "Đã cập nhật thành công Tháng " + targetMonth + " Năm " + targetYear + " tại dòng " + foundRow + " trên Google Sheet!",

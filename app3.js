@@ -54,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSignatureConfig();
     updateSheetLinksUI();
     updateWebhookStatusUI3();
+    initWebhookKeepAlive3();
     renderAll();
     
     // 3. YÊU CẦU: Mỗi khi truy cập trang, hệ thống tự động làm mới lấy dữ liệu mới nhất của link google sheet
@@ -2453,7 +2454,7 @@ function handleSaveUpdateData() {
     showToast(`Đã cập nhật số liệu Tháng ${modalEditMonth} / Năm ${modalEditYear} thành công!`, "success");
 
     // 2. Kiểm tra Webhook để tự động ghi vào Google Sheet
-    const webhookUrl = (localStorage.getItem('ql_sheet3_webhook_url') || '').trim();
+    const webhookUrl = getActiveWebhookUrl3();
     const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
 
     const updatePayload = {
@@ -2482,14 +2483,24 @@ function handleSaveUpdateData() {
 let lastUpdatedPayload3 = null;
 
 /**
- * Cập nhật giao diện trạng thái Webhook Trang 3
+ * Lấy URL Webhook Trang 3 hiện tại (kết hợp localStorage và cấu hình mặc định)
  */
-function updateWebhookStatusUI3() {
+function getActiveWebhookUrl3() {
     let savedUrl = '';
     try {
         savedUrl = (localStorage.getItem('ql_sheet3_webhook_url') || '').trim();
     } catch (e) {}
+    if (!savedUrl && window.DEFAULT_WEBHOOK_URL_SHEET3) {
+        savedUrl = String(window.DEFAULT_WEBHOOK_URL_SHEET3).trim();
+    }
+    return savedUrl;
+}
 
+/**
+ * Cập nhật giao diện trạng thái Webhook Trang 3
+ */
+function updateWebhookStatusUI3() {
+    const savedUrl = getActiveWebhookUrl3();
     const isValid = Boolean(savedUrl && (savedUrl.startsWith('http://') || savedUrl.startsWith('https://')) && !savedUrl.includes('docs.google.com/spreadsheets'));
 
     const inputWebhookUrl3 = document.getElementById('inputWebhookUrl3');
@@ -2529,26 +2540,42 @@ function updateWebhookStatusUI3() {
 }
 
 /**
- * Gửi dữ liệu cập nhật tới Webhook (Google Apps Script hoặc n8n)
+ * Giữ ấm máy chủ Apps Script Trang 3 (Keep-Alive Ping) mỗi 4 phút để chống lag / cold start
+ */
+function initWebhookKeepAlive3() {
+    setInterval(() => {
+        const url = getActiveWebhookUrl3();
+        if (url && url.startsWith('https://script.google.com/macros/s/')) {
+            fetch(url + '?ping=keepalive', { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+        }
+    }, 4 * 60 * 1000);
+}
+
+/**
+ * Gửi dữ liệu cập nhật tới Webhook (Google Apps Script hoặc n8n) - Chạy ngầm chống lag
  */
 async function sendUpdateToGoogleSheetWebhook3(webhookUrl, payload) {
     try {
         showToast(`Đang đồng bộ số liệu Tháng ${payload.month}/${payload.year} lên Google Sheet...`, "info");
-        await fetch(webhookUrl, {
+        
+        // Gửi ngầm (asynchronous background) - giao diện người dùng không bị đơ/lag
+        fetch(webhookUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8'
             },
             body: JSON.stringify(payload)
+        }).then(() => {
+            showToast(`Đã đồng bộ số liệu Tháng ${payload.month}/${payload.year} vào Google Sheet thành công!`, "success");
+            // Sau 4s, tự động refresh để tải số liệu mới nhất từ Google Sheet
+            setTimeout(() => {
+                syncDataFromGoogleSheet(false);
+            }, 4000);
+        }).catch(err => {
+            console.warn("Lỗi gửi dữ liệu tới Webhook Trang 3:", err);
+            showToast("Đã lưu trên website nhưng gửi tới Webhook gặp trục trặc!", "warning");
         });
-
-        showToast(`Đã đồng bộ số liệu Tháng ${payload.month}/${payload.year} vào Google Sheet thành công!`, "success");
-
-        // Sau 2.5s, tự động refresh để tải số liệu mới nhất từ Google Sheet
-        setTimeout(() => {
-            syncDataFromGoogleSheet(false);
-        }, 2500);
 
         return true;
     } catch (err) {

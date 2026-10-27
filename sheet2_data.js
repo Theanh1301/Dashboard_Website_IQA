@@ -8,6 +8,9 @@
  * ===================================================================
  */
 
+// Cấu hình URL Webhook dự phòng vĩnh viễn (nếu localStorage bị xóa hoặc đổi máy/trình duyệt)
+window.DEFAULT_WEBHOOK_URL_SHEET2 = "";
+
 window.RAW_FINANCE_SHEET_DATA = [
     { id: "GD-01", expense: 1192659, income: 0, balance: 45088351, time: "Thời gian 09:45 ngày 12/10/2026", description: "Khoản chi phát sinh ngày 12/10/2026" },
     { id: "GD-02", expense: 40000, income: 0, balance: 45048351, time: "Thời gian 07:45 ngày 13/10/2026", description: "Khoản chi phát sinh ngày 13/10/2026" },
