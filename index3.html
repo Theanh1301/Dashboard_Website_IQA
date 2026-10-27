@@ -156,6 +156,11 @@
                         <span class="admin-badge">Admin</span>
                     </div>
 
+                    <button type="button" class="topbar-webhook-badge disconnected" id="topbarWebhookBadge3" onclick="openAppsScriptGuideModal3()" title="Nhấn để thiết lập Webhook tự động ghi vào file Google Sheet">
+                        <span class="pulse-dot"></span>
+                        <span id="topbarWebhookText3">Webhook: Chưa kết nối</span>
+                    </button>
+
                     <button class="btn-topbar btn-topbar-update" id="topUpdateDataBtn" title="Cập nhật thêm số liệu vào hoặc xóa bớt số liệu các mục theo tháng">
                         <i class="fa-solid fa-pen-to-square"></i>
                         <span>Cập nhật dữ liệu</span>
@@ -1198,6 +1203,36 @@
                         • Chưa có thay đổi
                     </div>
                 </div>
+                <!-- ACCORDION CẤU HÌNH WEBHOOK TỰ ĐỘNG GHI GOOGLE SHEET TRANG 3 -->
+                <div class="webhook-accordion" id="webhookAccordion3" style="margin-top: 14px;">
+                    <div class="webhook-accordion-header" id="toggleWebhookAccordion3">
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-cloud-arrow-up text-emerald"></i>
+                            <span>Tự Động Cập Nhật Vào Google Sheet (Qua Google Apps Script hoặc Webhook n8n)</span>
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span class="badge-sheet-tag" id="webhookStatusBadge3" style="background: #f1f5f9; color: #64748b; border-color: #cbd5e1;">Chưa kết nối</span>
+                            <i class="fa-solid fa-chevron-down webhook-arrow"></i>
+                        </span>
+                    </div>
+                    <div class="webhook-accordion-body">
+                        <p style="color: #475569; margin-bottom: 8px; line-height: 1.5; font-size: 12px;">
+                            Dán liên kết <strong>Google Apps Script Web App</strong> HOẶC <strong>Webhook n8n</strong> để mỗi khi bạn bấm "Xác nhận & Lưu", hệ thống sẽ tự động cập nhật đúng dòng Tháng & Năm tương ứng trên Google Sheet:
+                        </p>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input type="url" id="inputWebhookUrl3" class="form-control" style="flex: 1; padding: 7px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px;" placeholder="https://script.google.com/macros/s/.../exec hoặc URL webhook n8n">
+                            <button type="button" class="btn-primary" id="btnSaveWebhookUrl3" style="padding: 7px 14px; font-size: 11.5px; white-space: nowrap; background: #059669; color: #fff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                                <i class="fa-solid fa-check"></i> Lưu Webhook
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+                            <button type="button" class="btn-quick-light" id="btnOpenAppsScriptCode3" onclick="openAppsScriptGuideModal3()" style="font-size: 11px; padding: 4px 10px;">
+                                <i class="fa-solid fa-code"></i> Xem &amp; Sao chép mã Apps Script Trang 3 (30 giây)
+                            </button>
+                            <span style="font-size: 11px; color: #94a3b8;">• Hoặc dùng nút "Sao chép &amp; Mở Google Sheet" bên dưới để dán thủ công</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- FOOTER CỦA MODAL -->
@@ -1206,13 +1241,222 @@
                     <i class="fa-solid fa-arrow-rotate-left"></i>
                     <span>Khôi phục gốc tháng này</span>
                 </button>
-                <div style="display: flex; gap: 10px;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="btn-sig-action" id="btnCopyMonthAndOpenSheet" onclick="handleCopyMonthAndOpenSheet()" style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; font-weight: 600; padding: 8px 14px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Sao chép 8 giá trị chỉ số và mở Google Sheet để dán (Ctrl+V) vào dòng tháng này">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Sao chép &amp; Mở Google Sheet</span>
+                    </button>
                     <button type="button" class="btn-sig-action modal-close-btn-text" id="btnCancelUpdateData" style="padding: 8px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; font-weight: 600; cursor: pointer;">Hủy bỏ</button>
                     <button type="button" class="btn-confirm-save" id="btnSaveUpdateData">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        <span>Xác nhận & Lưu dữ liệu</span>
+                        <span>Xác nhận &amp; Lưu dữ liệu</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: THÔNG BÁO SAU KHI CẬP NHẬT DỮ LIỆU (NẾU CHƯA CÓ WEBHOOK) ================= -->
+    <div class="modal-backdrop" id="postUpdateSyncModal3" style="display: none;">
+        <div class="modal-dialog" style="max-width: 580px;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #0f172a; font-size: 15px;">
+                    <i class="fa-solid fa-circle-check text-emerald"></i>
+                    Đã Lưu Số Liệu Thành Công Trên Website!
+                </h3>
+                <button class="modal-close-btn" onclick="closePostUpdateSyncModal3()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 16px 20px;">
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+                    <div style="font-size: 12.5px; font-weight: 700; color: #166534; margin-bottom: 4px;">
+                        <i class="fa-solid fa-calendar-check" style="margin-right: 4px;"></i>
+                        <span id="postUpdateTargetLabel">Tháng 10 / Năm 2026</span>
+                    </div>
+                    <div style="font-size: 12px; color: #334155; line-height: 1.5;" id="postUpdateDetailsText">
+                        Số liệu đã được tính toán lại trên toàn bộ 8 thẻ KPI, biểu đồ cột và bảng chi tiết của hệ thống.
+                    </div>
+                </div>
+
+                <p style="font-size: 12.5px; color: #475569; margin-bottom: 10px;">
+                    Do bạn <strong>chưa kích hoạt Webhook</strong>, file Google Sheet trên Google Drive chưa nhận được thay đổi này. Hãy chọn một trong hai cách dưới đây:
+                </p>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="color: #0f172a; font-size: 13px;">
+                                <i class="fa-solid fa-paste text-emerald"></i> Cách 1 (Dán thủ công ngay): Sao chép &amp; Mở Sheet
+                            </strong>
+                            <span class="badge-sheet-tag">Làm ngay</span>
+                        </div>
+                        <p style="color: #64748b; font-size: 11.5px; margin: 0 0 10px 0;">
+                            Hệ thống sẽ sao chép 8 giá trị (Ảnh, Bài viết, Báo cáo, Trang, Danh mục, Cán bộ, ...) và mở file Google Sheet. Bạn chỉ cần click vào ô <strong>cột B</strong> của đúng dòng tháng đó và bấm <strong>Ctrl + V</strong>.
+                        </p>
+                        <button type="button" class="btn-primary" id="btnPostUpdateCopyAndOpen" onclick="handlePostUpdateCopyAndOpen3()" style="width: 100%; justify-content: center; padding: 9px; font-size: 12.5px; font-weight: 600; background: #059669; color: #fff; border: none; border-radius: 6px; cursor: pointer;">
+                            <i class="fa-regular fa-copy"></i> Sao Chép 8 Số Liệu &amp; Mở Google Sheet Ngay
+                        </button>
+                    </div>
+
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #ffffff;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="color: #0f172a; font-size: 13px;">
+                                <i class="fa-solid fa-robot text-blue"></i> Cách 2 (Tự động 100% vĩnh viễn): Kết nối Webhook (Apps Script hoặc n8n)
+                            </strong>
+                            <span class="badge-sheet-tag">Khuyên dùng</span>
+                        </div>
+                        <p style="color: #64748b; font-size: 11.5px; margin: 0 0 10px 0;">
+                            Cài Google Apps Script có sẵn trên Sheet hoặc Webhook n8n: Mỗi khi bấm "Xác nhận &amp; Lưu", dữ liệu sẽ tự động bay thẳng vào Google Sheet mà không cần mở file dán tay.
+                        </p>
+                        <button type="button" class="btn-quick-light" id="btnPostUpdateOpenAppsScript" onclick="openAppsScriptGuideModal3()" style="width: 100%; justify-content: center; padding: 8px; font-size: 12px; font-weight: 600; color: #0284c7; border-color: #bae6fd; background: #f0f9ff; cursor: pointer;">
+                            <i class="fa-solid fa-code"></i> Xem Hướng Dẫn &amp; Lấy Mã Script Kết Nối Tự Động (30 giây)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; justify-content: flex-end; padding: 10px 16px;">
+                <button type="button" class="btn-sig-action modal-close-btn-text" onclick="closePostUpdateSyncModal3()" style="padding: 7px 16px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer;">Đã Hiểu &amp; Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: HƯỚNG DẪN GOOGLE APPS SCRIPT TRANG 3 ================= -->
+    <div class="modal-backdrop" id="appsScriptGuideModal3" style="display: none;">
+        <div class="modal-dialog modal-dialog-large" style="max-width: 760px;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px; font-size: 15px;">
+                    <i class="fa-solid fa-code text-emerald"></i>
+                    Mã Google Apps Script Tự Động Cập Nhật Số Liệu CMS Theo Tháng (Trang 3)
+                </h3>
+                <button class="modal-close-btn" onclick="closeAppsScriptGuideModal3()">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size: 12.5px; line-height: 1.6; color: #334155; padding: 16px 20px;">
+                <p>Thực hiện 3 bước đơn giản trên file Google Sheet của Trang 3 để tự động hóa 100%:</p>
+                <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Mở file Google Sheet Trang 3 (Sheet ID: <code>1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw</code>), vào menu <strong>Tiện ích mở rộng (Extensions) &gt; Apps Script</strong>.</li>
+                    <li>Xóa toàn bộ mã cũ trong file <code>Code.gs</code>, dán đoạn mã chuẩn hóa bên dưới vào rồi bấm <strong>Lưu (Ctrl + S)</strong>.</li>
+                    <li>Bấm nút <strong>Triển khai (Deploy) &gt; Tùy chọn triển khai mới (New deployment)</strong> &gt; Chọn loại <strong>Ứng dụng web (Web app)</strong> &gt; Mục <em>"Người thực thi" (Execute as)</em> chọn <strong>"Tôi" (Me)</strong> &gt; Mục <em>"Ai có quyền truy cập" (Who has access)</em> chọn <strong>"Bất kỳ ai" (Anyone)</strong> (Rất quan trọng!) &gt; Bấm <strong>Triển khai</strong> &gt; Sao chép URL Web App dán vào ô bên dưới.</li>
+                </ol>
+                <div class="code-block-wrapper" style="position: relative; margin-top: 10px;">
+                    <button type="button" class="btn-copy-code" id="btnCopyAppsScriptCode3" onclick="handleCopyAppsScriptCode3()" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 11.5px; background: #059669; color: #fff; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                        <i class="fa-regular fa-copy"></i> Sao chép mã
+                    </button>
+                    <pre id="appsScriptCodeText3" style="background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 8px; font-size: 11.5px; overflow-x: auto; max-height: 260px; line-height: 1.5;">/**
+ * GOOGLE APPS SCRIPT WEB APP - TỰ ĐỘNG CẬP NHẬT CHỈ SỐ CMS THEO THÁNG (TRANG 3)
+ * Viện Quản Lý Chất Lượng &amp; Khảo Thí (IQA)
+ * Sheet ID: 1Z70EDNp9lg1DPrAAUMmpMGf6f_rYEVZTZ2VqpRfpWpw
+ * Tab GID Mục Tiêu: 0
+ */
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var contents = e.postData ? e.postData.contents : "{}";
+    var data = JSON.parse(contents);
+
+    // 1. Tìm đúng tab có GID = 0 (hoặc tab đầu tiên)
+    var targetGid = (data &amp;&amp; data.gid !== undefined) ? Number(data.gid) : 0;
+    var sheet = null;
+    var sheets = ss.getSheets();
+    for (var i = 0; i &lt; sheets.length; i++) {
+      if (sheets[i].getSheetId() == targetGid) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+    if (!sheet) sheet = ss.getActiveSheet() || sheets[0];
+
+    // 2. Lấy thông tin Năm và Tháng cần cập nhật
+    var targetYear = Number(data.year || 2026);
+    var targetMonth = Number(data.month || 10);
+
+    // 3. Quét cột A để tìm chính xác dòng của Năm và Tháng đó
+    var lastRow = sheet.getLastRow();
+    var colA = sheet.getRange(1, 1, lastRow, 1).getValues();
+    var currentYear = 2025;
+    var foundRow = -1;
+
+    for (var r = 0; r &lt; colA.length; r++) {
+      var cellVal = String(colA[r][0] || "").trim();
+      var yearMatch = cellVal.match(/(?:Năm\s*)(\d{4})/i);
+      if (yearMatch) {
+        currentYear = Number(yearMatch[1]);
+      }
+      var monthMatch = cellVal.match(/(?:Tháng\s*)(\d{1,2})/i);
+      if (monthMatch) {
+        var mNum = Number(monthMatch[1]);
+        if (currentYear === targetYear &amp;&amp; mNum === targetMonth) {
+          foundRow = r + 1; // 1-indexed trong Google Sheet
+          break;
+        }
+      }
+    }
+
+    // Dự phòng vị trí hàng cố định theo cấu trúc sheet
+    if (foundRow === -1) {
+      if (targetYear === 2025) foundRow = 1 + targetMonth;
+      else if (targetYear === 2026) foundRow = 14 + targetMonth;
+      else if (targetYear === 2027) foundRow = 27 + targetMonth;
+      else if (targetYear === 2028) foundRow = 40 + targetMonth;
+    }
+
+    if (foundRow &lt; 2) {
+      throw new Error("Không tìm thấy dòng cho Tháng " + targetMonth + " Năm " + targetYear);
+    }
+
+    // 4. Lấy 8 giá trị tương ứng 8 cột:
+    // Cột B (2): Ảnh | Cột C (3): Bài đã đăng | Cột D (4): Bài chờ đăng | Cột E (5): Báo cáo
+    // Cột F (6): Thông báo | Cột G (7): Danh mục | Cột H (8): Nhân sự | Cột I (9): Trang/Phân hệ
+    var img = Number(data.images !== undefined ? data.images : 0);
+    var pub = Number(data.publishedPosts !== undefined ? data.publishedPosts : 0);
+    var pen = Number(data.pendingPosts !== undefined ? data.pendingPosts : 0);
+    var rep = Number(data.reports !== undefined ? data.reports : 0);
+    var ann = Number(data.announcements !== undefined ? data.announcements : 0);
+    var cat = Number(data.categories !== undefined ? data.categories : 0);
+    var stf = Number(data.staff !== undefined ? data.staff : 0);
+    var pag = Number(data.pages !== undefined ? data.pages : 0);
+
+    // Ghi đè 8 cột từ B đến I tại dòng foundRow
+    sheet.getRange(foundRow, 2, 1, 8).setValues([[img, pub, pen, rep, ann, cat, stf, pag]]);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      message: "Đã cập nhật thành công Tháng " + targetMonth + " Năm " + targetYear + " tại dòng " + foundRow + " trên Google Sheet!",
+      row: foundRow
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput("Webhook Google Sheet Trang 3 (CMS &amp; Hoạt động) đã sẵn sàng!");
+}</pre>
+                </div>
+
+                <!-- Ô DÁN URL WEBHOOK NGAY TRONG MODAL HƯỚNG DẪN -->
+                <div style="margin-top: 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px;">
+                    <label for="inputWebhookUrlGuide3" style="display: block; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                        <i class="fa-solid fa-link text-emerald"></i> Dán link Webhook tự động (Google Apps Script Web App HOẶC Webhook n8n):
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="url" id="inputWebhookUrlGuide3" class="form-control" placeholder="https://script.google.com/macros/s/.../exec hoặc https://<n8n-domain>/webhook/..." style="flex: 1; padding: 7px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px;">
+                        <button type="button" class="btn-primary" id="btnSaveWebhookFromGuide3" onclick="handleSaveWebhookFromGuide3()" style="white-space: nowrap; padding: 7px 16px; background: #059669; color: #fff; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Kích Hoạt
+                        </button>
+                    </div>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 6px;">
+                        <i class="fa-solid fa-circle-info text-sky"></i> Hỗ trợ cả <strong>Google Apps Script</strong> có sẵn trong Sheet và <strong>n8n Webhook</strong> (Node Webhook nhận JSON <code>{year, month, images, publishedPosts, ...}</code> rồi nối vào Node Google Sheets).
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 10px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+                <button type="button" class="btn-confirm-save" onclick="closeAppsScriptGuideModal3()">
+                    <i class="fa-solid fa-check"></i> Đã Hiểu &amp; Đóng
+                </button>
             </div>
         </div>
     </div>

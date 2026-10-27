@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initEventListeners();
     initSignatureConfig();
     updateSheetLinksUI();
+    updateWebhookStatusUI3();
     renderAll();
     
     // 3. YÊU CẦU: Mỗi khi truy cập trang, hệ thống tự động làm mới lấy dữ liệu mới nhất của link google sheet
@@ -2131,6 +2132,41 @@ function initUpdateDataModalEvents() {
             handleSaveUpdateData();
         });
     }
+
+    // 11. Accordion cấu hình Webhook Trang 3
+    const toggleWebhookAccordion3 = document.getElementById("toggleWebhookAccordion3");
+    const webhookAccordion3 = document.getElementById("webhookAccordion3");
+    if (toggleWebhookAccordion3 && webhookAccordion3) {
+        toggleWebhookAccordion3.addEventListener("click", () => {
+            webhookAccordion3.classList.toggle("open");
+        });
+    }
+
+    // 12. Nút lưu Webhook trong accordion
+    const btnSaveWebhookUrl3 = document.getElementById("btnSaveWebhookUrl3");
+    const inputWebhookUrl3 = document.getElementById("inputWebhookUrl3");
+    if (btnSaveWebhookUrl3 && inputWebhookUrl3) {
+        btnSaveWebhookUrl3.addEventListener("click", () => {
+            const url = inputWebhookUrl3.value.trim();
+            if (url) {
+                if (url.includes('docs.google.com/spreadsheets')) {
+                    showToast("Đây là link xem Google Sheet thông thường! Để tự động ghi dữ liệu, bạn cần dán URL Webhook (từ Google Apps Script hoặc n8n/Make/Zapier)!", "warning");
+                    return;
+                }
+                if (!url.startsWith('https://') && !url.startsWith('http://')) {
+                    showToast("Link Webhook không hợp lệ! URL phải bắt đầu bằng https:// (ví dụ URL Web App Apps Script hoặc Webhook n8n).", "warning");
+                    return;
+                }
+                localStorage.setItem('ql_sheet3_webhook_url', url);
+                updateWebhookStatusUI3();
+                showToast("Đã lưu và kích hoạt Webhook Trang 3 thành công! Các số liệu từ nay sẽ tự động cập nhật vào Google Sheet.", "success");
+            } else {
+                localStorage.removeItem('ql_sheet3_webhook_url');
+                updateWebhookStatusUI3();
+                showToast("Đã xóa Webhook Trang 3.", "info");
+            }
+        });
+    }
 }
 
 /**
@@ -2415,7 +2451,269 @@ function handleSaveUpdateData() {
 
     // Hiển thị thông báo Toast
     showToast(`Đã cập nhật số liệu Tháng ${modalEditMonth} / Năm ${modalEditYear} thành công!`, "success");
+
+    // 2. Kiểm tra Webhook để tự động ghi vào Google Sheet
+    const webhookUrl = (localStorage.getItem('ql_sheet3_webhook_url') || '').trim();
+    const isWebhookValid = Boolean(webhookUrl && (webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')) && !webhookUrl.includes('docs.google.com/spreadsheets'));
+
+    const updatePayload = {
+        year: modalEditYear,
+        month: modalEditMonth,
+        images: monthItem.images,
+        publishedPosts: monthItem.publishedPosts,
+        pendingPosts: monthItem.pendingPosts,
+        reports: monthItem.reports,
+        announcements: monthItem.announcements,
+        categories: monthItem.categories,
+        staff: monthItem.staff,
+        pages: monthItem.pages,
+        gid: 0
+    };
+
+    lastUpdatedPayload3 = updatePayload;
+
+    if (isWebhookValid) {
+        sendUpdateToGoogleSheetWebhook3(webhookUrl, updatePayload);
+    } else {
+        openPostUpdateSyncModal3(updatePayload);
+    }
 }
+
+let lastUpdatedPayload3 = null;
+
+/**
+ * Cập nhật giao diện trạng thái Webhook Trang 3
+ */
+function updateWebhookStatusUI3() {
+    let savedUrl = '';
+    try {
+        savedUrl = (localStorage.getItem('ql_sheet3_webhook_url') || '').trim();
+    } catch (e) {}
+
+    const isValid = Boolean(savedUrl && (savedUrl.startsWith('http://') || savedUrl.startsWith('https://')) && !savedUrl.includes('docs.google.com/spreadsheets'));
+
+    const inputWebhookUrl3 = document.getElementById('inputWebhookUrl3');
+    const inputWebhookUrlGuide3 = document.getElementById('inputWebhookUrlGuide3');
+    const webhookStatusBadge3 = document.getElementById('webhookStatusBadge3');
+    const topbarWebhookBadge3 = document.getElementById('topbarWebhookBadge3');
+    const topbarWebhookText3 = document.getElementById('topbarWebhookText3');
+
+    if (inputWebhookUrl3) inputWebhookUrl3.value = savedUrl;
+    if (inputWebhookUrlGuide3) inputWebhookUrlGuide3.value = savedUrl;
+
+    if (webhookStatusBadge3) {
+        if (isValid) {
+            webhookStatusBadge3.textContent = "Đã kết nối Webhook";
+            webhookStatusBadge3.style.background = "#dcfce7";
+            webhookStatusBadge3.style.color = "#15803d";
+            webhookStatusBadge3.style.borderColor = "#bbf7d0";
+        } else {
+            webhookStatusBadge3.textContent = "Chưa kết nối Webhook";
+            webhookStatusBadge3.style.background = "#fff7ed";
+            webhookStatusBadge3.style.color = "#c2410c";
+            webhookStatusBadge3.style.borderColor = "#fed7aa";
+        }
+    }
+
+    if (topbarWebhookBadge3 && topbarWebhookText3) {
+        if (isValid) {
+            topbarWebhookBadge3.className = "topbar-webhook-badge connected";
+            topbarWebhookText3.textContent = "Webhook: Tự động ghi Sheet";
+            topbarWebhookBadge3.title = "Đã kết nối Webhook Trang 3. Bấm để xem hoặc thay đổi URL";
+        } else {
+            topbarWebhookBadge3.className = "topbar-webhook-badge disconnected";
+            topbarWebhookText3.textContent = "Webhook: Chưa kết nối";
+            topbarWebhookBadge3.title = "Chưa kết nối Webhook ghi Google Sheet Trang 3. Bấm để thiết lập tự động trong 30 giây";
+        }
+    }
+}
+
+/**
+ * Gửi dữ liệu cập nhật tới Webhook (Google Apps Script hoặc n8n)
+ */
+async function sendUpdateToGoogleSheetWebhook3(webhookUrl, payload) {
+    try {
+        showToast(`Đang đồng bộ số liệu Tháng ${payload.month}/${payload.year} lên Google Sheet...`, "info");
+        await fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        showToast(`Đã đồng bộ số liệu Tháng ${payload.month}/${payload.year} vào Google Sheet thành công!`, "success");
+
+        // Sau 2.5s, tự động refresh để tải số liệu mới nhất từ Google Sheet
+        setTimeout(() => {
+            syncDataFromGoogleSheet(false);
+        }, 2500);
+
+        return true;
+    } catch (err) {
+        console.warn("Lỗi gửi dữ liệu tới Webhook Trang 3:", err);
+        showToast("Đã lưu trên website nhưng chưa thể gửi tới Webhook (hãy kiểm tra URL Apps Script / n8n)!", "warning");
+        return false;
+    }
+}
+
+/**
+ * Sao chép 8 giá trị của tháng đang chọn và mở file Google Sheet
+ */
+function handleCopyMonthAndOpenSheet() {
+    let monthItem = (yearlyData[modalEditYear] || []).find(m => m.month === modalEditMonth);
+    const img = (monthItem && monthItem.images !== undefined) ? monthItem.images : 0;
+    const pub = (monthItem && monthItem.publishedPosts !== undefined) ? monthItem.publishedPosts : 0;
+    const pen = (monthItem && monthItem.pendingPosts !== undefined) ? monthItem.pendingPosts : 0;
+    const rep = (monthItem && monthItem.reports !== undefined) ? monthItem.reports : 0;
+    const ann = (monthItem && monthItem.announcements !== undefined) ? monthItem.announcements : 0;
+    const cat = (monthItem && monthItem.categories !== undefined) ? monthItem.categories : 0;
+    const stf = (monthItem && monthItem.staff !== undefined) ? monthItem.staff : 0;
+    const pag = (monthItem && monthItem.pages !== undefined) ? monthItem.pages : 0;
+
+    const tsvData = `${img}\t${pub}\t${pen}\t${rep}\t${ann}\t${cat}\t${stf}\t${pag}`;
+
+    const finishCopy = () => {
+        showToast(`Đã sao chép 8 số liệu Tháng ${modalEditMonth}/${modalEditYear}! Hãy click ô Cột B của dòng này và bấm Ctrl+V.`, "success");
+        window.open(DEFAULT_SHEET3_URL, '_blank');
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvData).then(finishCopy).catch(() => {
+            prompt(`Sao chép dữ liệu Tháng ${modalEditMonth}/${modalEditYear} (Ctrl+C) rồi dán vào cột B:`, tsvData);
+            window.open(DEFAULT_SHEET3_URL, '_blank');
+        });
+    } else {
+        prompt(`Sao chép dữ liệu Tháng ${modalEditMonth}/${modalEditYear} (Ctrl+C) rồi dán vào cột B:`, tsvData);
+        window.open(DEFAULT_SHEET3_URL, '_blank');
+    }
+}
+
+/**
+ * Mở modal hướng dẫn Google Apps Script Trang 3
+ */
+window.openAppsScriptGuideModal3 = function() {
+    const modal = document.getElementById('appsScriptGuideModal3');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+        const input = document.getElementById('inputWebhookUrlGuide3');
+        if (input) input.value = localStorage.getItem('ql_sheet3_webhook_url') || '';
+    }
+};
+
+window.closeAppsScriptGuideModal3 = function() {
+    const modal = document.getElementById('appsScriptGuideModal3');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    }
+};
+
+/**
+ * Mở modal thông báo sau khi cập nhật nếu chưa có Webhook
+ */
+window.openPostUpdateSyncModal3 = function(payload) {
+    lastUpdatedPayload3 = payload;
+    const modal = document.getElementById('postUpdateSyncModal3');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+
+        const targetLabel = document.getElementById('postUpdateTargetLabel');
+        const detailsText = document.getElementById('postUpdateDetailsText');
+        if (targetLabel) {
+            targetLabel.textContent = `Tháng ${payload.month} / Năm ${payload.year}`;
+        }
+        if (detailsText) {
+            detailsText.innerHTML = `Đã cập nhật: <strong>Ảnh:</strong> ${payload.images} &bull; <strong>Bài đăng:</strong> ${payload.publishedPosts} &bull; <strong>Báo cáo:</strong> ${payload.reports} &bull; <strong>Trang:</strong> ${payload.pages} &bull; <strong>Danh mục:</strong> ${payload.categories} &bull; <strong>Cán bộ:</strong> ${payload.staff}`;
+        }
+    }
+};
+
+window.closePostUpdateSyncModal3 = function() {
+    const modal = document.getElementById('postUpdateSyncModal3');
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    }
+};
+
+/**
+ * Xử lý sao chép từ postUpdateSyncModal3
+ */
+window.handlePostUpdateCopyAndOpen3 = function() {
+    if (!lastUpdatedPayload3) return;
+    const p = lastUpdatedPayload3;
+    const tsvData = `${p.images}\t${p.publishedPosts}\t${p.pendingPosts}\t${p.reports}\t${p.announcements}\t${p.categories}\t${p.staff}\t${p.pages}`;
+
+    const finishCopy = () => {
+        showToast(`Đã sao chép 8 số liệu Tháng ${p.month}/${p.year}! Đang mở Google Sheet...`, "success");
+        window.open(DEFAULT_SHEET3_URL, '_blank');
+        closePostUpdateSyncModal3();
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvData).then(finishCopy).catch(() => {
+            prompt(`Sao chép dữ liệu Tháng ${p.month}/${p.year} (Ctrl+C):`, tsvData);
+            window.open(DEFAULT_SHEET3_URL, '_blank');
+            closePostUpdateSyncModal3();
+        });
+    } else {
+        prompt(`Sao chép dữ liệu Tháng ${p.month}/${p.year} (Ctrl+C):`, tsvData);
+        window.open(DEFAULT_SHEET3_URL, '_blank');
+        closePostUpdateSyncModal3();
+    }
+};
+
+/**
+ * Sao chép mã Google Apps Script Trang 3
+ */
+window.handleCopyAppsScriptCode3 = function() {
+    const codeEl = document.getElementById('appsScriptCodeText3');
+    if (!codeEl) return;
+    const text = codeEl.innerText || codeEl.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast("Đã sao chép mã Apps Script Trang 3 vào bộ nhớ tạm!", "success");
+        }).catch(() => {
+            prompt("Sao chép mã Apps Script bên dưới (Ctrl+C):", text);
+        });
+    } else {
+        prompt("Sao chép mã Apps Script bên dưới (Ctrl+C):", text);
+    }
+};
+
+/**
+ * Lưu Webhook từ Modal hướng dẫn Trang 3
+ */
+window.handleSaveWebhookFromGuide3 = function() {
+    const input = document.getElementById('inputWebhookUrlGuide3');
+    const url = input ? input.value.trim() : '';
+
+    if (!url) {
+        localStorage.removeItem('ql_sheet3_webhook_url');
+        showToast("Đã xóa cấu hình Webhook Trang 3.", "info");
+        updateWebhookStatusUI3();
+        return;
+    }
+
+    if (url.includes('docs.google.com/spreadsheets')) {
+        showToast("Đây là link xem Google Sheet thông thường! Để tự động ghi dữ liệu, bạn cần dán URL Webhook (từ Google Apps Script hoặc n8n/Make/Zapier)!", "warning");
+        return;
+    }
+
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+        showToast("Link Webhook không hợp lệ! URL phải bắt đầu bằng https:// (ví dụ URL Web App Apps Script hoặc Webhook n8n).", "warning");
+        return;
+    }
+
+    localStorage.setItem('ql_sheet3_webhook_url', url);
+    updateWebhookStatusUI3();
+    showToast("Đã kích hoạt Webhook Trang 3 thành công! Số liệu từ nay sẽ tự động cập nhật vào Google Sheet.", "success");
+    closeAppsScriptGuideModal3();
+};
 
 /**
  * Khôi phục lại dữ liệu gốc của tháng
@@ -2469,9 +2767,39 @@ function highlightTableRow(month) {
     }
 }
 
+// Đóng modal khi bấm phím ESC hoặc click backdrop
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeUpdateDataModal();
+        closeAppsScriptGuideModal3();
+        closePostUpdateSyncModal3();
+    }
+});
+
+['updateDataModal', 'appsScriptGuideModal3', 'postUpdateSyncModal3'].forEach(mId => {
+    const m = document.getElementById(mId);
+    if (m) {
+        m.addEventListener('click', (e) => {
+            if (e.target === m) {
+                if (mId === 'updateDataModal') closeUpdateDataModal();
+                if (mId === 'appsScriptGuideModal3') closeAppsScriptGuideModal3();
+                if (mId === 'postUpdateSyncModal3') closePostUpdateSyncModal3();
+            }
+        });
+    }
+});
+
 // Gắn hàm toàn cục để có thể gọi từ inline onclick HTML
 window.openUpdateDataModal = openUpdateDataModal;
 window.closeUpdateDataModal = closeUpdateDataModal;
 window.handleStepperChange = handleStepperChange;
 window.handleSaveUpdateData = handleSaveUpdateData;
 window.handleResetCurrentMonth = handleResetCurrentMonth;
+window.handleCopyMonthAndOpenSheet = handleCopyMonthAndOpenSheet;
+window.openAppsScriptGuideModal3 = openAppsScriptGuideModal3;
+window.closeAppsScriptGuideModal3 = closeAppsScriptGuideModal3;
+window.openPostUpdateSyncModal3 = openPostUpdateSyncModal3;
+window.closePostUpdateSyncModal3 = closePostUpdateSyncModal3;
+window.handlePostUpdateCopyAndOpen3 = handlePostUpdateCopyAndOpen3;
+window.handleCopyAppsScriptCode3 = handleCopyAppsScriptCode3;
+window.handleSaveWebhookFromGuide3 = handleSaveWebhookFromGuide3;
