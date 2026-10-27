@@ -92,12 +92,13 @@ function initEventListeners() {
         yearSelect.value = currentYear;
         yearSelect.addEventListener("change", (e) => {
             currentYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            updateScopeFilterOptionsUI();
             renderAll();
             showToast(currentYear === 'all' ? 'Đã chuyển sang xem Tổng kho Toàn bộ các năm' : `Đã chuyển sang số liệu Năm ${currentYear}`, "info");
         });
     }
 
-    // Dropdown chọn phạm vi (12 tháng hoặc theo quý/tháng)
+    // Dropdown chọn phạm vi (12 tháng, 3 tháng gần nhất, hoặc theo quý/tháng cụ thể)
     const scopeSelect = document.getElementById("scopeFilter");
     if (scopeSelect) {
         scopeSelect.value = selectedScope;
@@ -105,7 +106,18 @@ function initEventListeners() {
             selectedScope = e.target.value;
             renderAll();
             const scope = getScopeInfo();
-            showToast(`Đã phân chia dữ liệu theo: ${scope.label}`, "info");
+            showToast(`Đã chuyển phạm vi hiển thị: ${scope.label}`, "info");
+        });
+    }
+
+    // Nút Xem tất cả 12 tháng trên bảng chi tiết
+    const btnResetScopeAll = document.getElementById("btnResetScopeAll");
+    if (btnResetScopeAll) {
+        btnResetScopeAll.addEventListener("click", () => {
+            selectedScope = 'all';
+            if (scopeSelect) scopeSelect.value = 'all';
+            renderAll();
+            showToast("Đã quay lại hiển thị toàn bộ 12 tháng", "info");
         });
     }
 
@@ -422,15 +434,55 @@ async function syncDataFromGoogleSheet(isUserTriggered = false) {
 }
 
 /**
- * Xác định thông tin phạm vi phân chia hiện tại (Quý, 6 tháng, 12 tháng)
+ * Xác định thông tin phạm vi phân chia hiện tại (3 tháng gần nhất, Từng tháng 1..12, Quý, 6 tháng, 12 tháng)
  */
 function getScopeInfo() {
+    // 1. Kiểm tra nếu là chọn từng tháng cụ thể (m1 .. m12 hoặc số 1 .. 12)
+    const monthMatch = String(selectedScope).match(/^(?:m)?([1-9]|1[0-2])$/);
+    if (monthMatch) {
+        const mo = parseInt(monthMatch[1], 10);
+        return {
+            id: `m${mo}`,
+            label: `Tháng ${mo}`,
+            shortLabel: `Tháng ${mo}`,
+            periodName: `Tháng ${mo}`,
+            months: [mo],
+            isSingleMonth: true,
+            monthNumber: mo
+        };
+    }
+
+    // 2. Kiểm tra nếu là 3 tháng gần nhất
+    if (selectedScope === 'last3') {
+        let endMonth = 10;
+        if (currentYear === 2025) {
+            endMonth = 12;
+        } else if (currentYear === 2026) {
+            endMonth = 10; // Tháng 10 hiện tại của năm học 2026
+        } else {
+            endMonth = currentMonth || 10;
+        }
+        const m1 = Math.max(1, endMonth - 2);
+        const m2 = Math.max(1, endMonth - 1);
+        const m3 = endMonth;
+        return {
+            id: 'last3',
+            label: `3 tháng gần nhất (T${m1} - T${m3})`,
+            shortLabel: `3 tháng (T${m1}-T${m3})`,
+            periodName: `3 tháng gần nhất (Tháng ${m1} - Tháng ${m3})`,
+            months: [m1, m2, m3],
+            isRecent3: true
+        };
+    }
+
+    // 3. Các phạm vi phân chia theo Quý và 6 tháng
     switch (selectedScope) {
         case 'q1':
             return {
                 id: 'q1',
                 label: 'Quý 1 (T1 - T3)',
                 shortLabel: 'Quý 1',
+                periodName: 'Quý 1',
                 months: [1, 2, 3]
             };
         case 'q2':
@@ -438,6 +490,7 @@ function getScopeInfo() {
                 id: 'q2',
                 label: 'Quý 2 (T4 - T6)',
                 shortLabel: 'Quý 2',
+                periodName: 'Quý 2',
                 months: [4, 5, 6]
             };
         case 'q3':
@@ -445,6 +498,7 @@ function getScopeInfo() {
                 id: 'q3',
                 label: 'Quý 3 (T7 - T9)',
                 shortLabel: 'Quý 3',
+                periodName: 'Quý 3',
                 months: [7, 8, 9]
             };
         case 'q4':
@@ -452,6 +506,7 @@ function getScopeInfo() {
                 id: 'q4',
                 label: 'Quý 4 (T10 - T12)',
                 shortLabel: 'Quý 4',
+                periodName: 'Quý 4',
                 months: [10, 11, 12]
             };
         case 'h1':
@@ -459,6 +514,7 @@ function getScopeInfo() {
                 id: 'h1',
                 label: '6 tháng đầu năm (T1 - T6)',
                 shortLabel: '6 tháng đầu',
+                periodName: '6 tháng đầu năm',
                 months: [1, 2, 3, 4, 5, 6]
             };
         case 'h2':
@@ -466,18 +522,69 @@ function getScopeInfo() {
                 id: 'h2',
                 label: '6 tháng cuối năm (T7 - T12)',
                 shortLabel: '6 tháng cuối',
+                periodName: '6 tháng cuối năm',
                 months: [7, 8, 9, 10, 11, 12]
             };
         case 'all':
         default:
             return {
                 id: 'all',
-                label: '12 tháng',
+                label: '12 tháng (Toàn năm)',
                 shortLabel: '12 tháng',
+                periodName: 'Cả năm',
                 months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
             };
     }
 }
+
+/**
+ * Cập nhật nhãn và trạng thái các tùy chọn trong dropdown Phạm vi
+ */
+function updateScopeFilterOptionsUI() {
+    const scopeSelect = document.getElementById("scopeFilter");
+    if (!scopeSelect) return;
+
+    // Cập nhật nhãn của tùy chọn "3 tháng gần nhất" theo năm đang chọn
+    const last3Option = scopeSelect.querySelector('option[value="last3"]');
+    if (last3Option) {
+        if (currentYear === 2025) {
+            last3Option.textContent = "3 tháng gần nhất (T10 - T12)";
+        } else if (currentYear === 2026) {
+            last3Option.textContent = "3 tháng gần nhất (T8 - T10)";
+        } else {
+            const endM = currentMonth || 10;
+            const startM = Math.max(1, endM - 2);
+            last3Option.textContent = `3 tháng gần nhất (T${startM} - T${endM})`;
+        }
+    }
+}
+
+/**
+ * Chuyển nhanh phạm vi hiển thị sang một tháng cụ thể (khi click vào bảng hoặc chọn từ bên ngoài)
+ */
+function selectScopeMonth(monthNum) {
+    const mo = parseInt(monthNum, 10);
+    if (!mo || mo < 1 || mo > 12) return;
+
+    selectedScope = `m${mo}`;
+    const scopeSelect = document.getElementById("scopeFilter");
+    if (scopeSelect) {
+        scopeSelect.value = `m${mo}`;
+    }
+    renderAll();
+    const scope = getScopeInfo();
+    showToast(`Đang hiển thị số liệu ${scope.label}`, "info");
+
+    // Cuộn nhẹ lên đầu để người dùng thấy rõ 8 thẻ KPI được cập nhật
+    const statsGrid = document.querySelector(".stats-grid-4");
+    if (statsGrid) {
+        statsGrid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Gắn toàn cục
+window.selectScopeMonth = selectScopeMonth;
+window.updateScopeFilterOptionsUI = updateScopeFilterOptionsUI;
 
 /**
  * Tính toán động Tổng kho Toàn bộ các năm từ dữ liệu thực tế
@@ -643,11 +750,11 @@ function renderKpiCards(filteredMonths) {
     const kpiPostsSublabel = document.getElementById("kpiPostsSublabel");
     const kpiPostsSub = document.getElementById("kpiPostsSub");
     if (kpiPostsVal) kpiPostsVal.textContent = isScopeAll ? (currentMonthObj.publishedPosts || 0) : scopePosts;
-    if (kpiPostsSublabel) kpiPostsSublabel.textContent = "Bài viết đã đăng";
+    if (kpiPostsSublabel) kpiPostsSublabel.textContent = isScopeAll ? "Bài viết đã đăng" : `Bài viết đã đăng (${scope.label})`;
     if (kpiPostsSub) {
         kpiPostsSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.posts} bài | ${yearDetailText}: ${totalPostsYear} bài)`
-            : `(${scope.shortLabel}: ${scopePosts} | Tổng kho: ${allTime.posts} bài)`;
+            : `(${scope.shortLabel}: ${scopePosts} bài | ${yearDetailText}: ${totalPostsYear} bài | Tổng: ${allTime.posts})`;
     }
 
     // 2. THÔNG BÁO: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 tb)
@@ -655,11 +762,11 @@ function renderKpiCards(filteredMonths) {
     const kpiAnnounceSublabel = document.getElementById("kpiAnnounceSublabel");
     const kpiAnnounceSub = document.getElementById("kpiAnnounceSub");
     if (kpiAnnounceVal) kpiAnnounceVal.textContent = isScopeAll ? (currentMonthObj.announcements || 0) : scopeAnnounce;
-    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = "Thông báo ban hành";
+    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = isScopeAll ? "Thông báo ban hành" : `Thông báo ban hành (${scope.label})`;
     if (kpiAnnounceSub) {
         kpiAnnounceSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.announcements} thông báo | ${yearDetailText}: ${totalAnnounceYear})`
-            : `(${scope.shortLabel}: ${scopeAnnounce} | Tổng kho: ${allTime.announcements} thông báo)`;
+            : `(${scope.shortLabel}: ${scopeAnnounce} tb | ${yearDetailText}: ${totalAnnounceYear} tb | Tổng: ${allTime.announcements})`;
     }
 
     // 3. CẦN XÉT DUYỆT: Số to hiển thị số liệu hàng tháng (0 bài)
@@ -667,19 +774,19 @@ function renderKpiCards(filteredMonths) {
     const kpiPendingSublabel = document.getElementById("kpiPendingSublabel");
     const kpiPendingSub = document.getElementById("kpiPendingSub");
     if (kpiPendingVal) kpiPendingVal.textContent = isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending;
-    if (kpiPendingSublabel) kpiPendingSublabel.textContent = "Bài viết chờ đăng";
-    if (kpiPendingSub) kpiPendingSub.textContent = `(Đang chờ: ${isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending} bài)`;
+    if (kpiPendingSublabel) kpiPendingSublabel.textContent = isScopeAll ? "Bài viết chờ đăng" : `Bài viết chờ đăng (${scope.label})`;
+    if (kpiPendingSub) kpiPendingSub.textContent = isScopeAll ? `(Đang chờ: ${isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending} bài)` : `(Chờ duyệt ${scope.shortLabel}: ${scopePending} bài)`;
 
     // 4. TRANG & PHÂN HỆ: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 5 trang)
     const kpiPagesVal = document.getElementById("kpiPagesValue");
     const kpiPagesSublabel = document.getElementById("kpiPagesSublabel");
     const kpiPagesSub = document.getElementById("kpiPagesSub");
     if (kpiPagesVal) kpiPagesVal.textContent = isScopeAll ? (currentMonthObj.pages || 0) : scopePages;
-    if (kpiPagesSublabel) kpiPagesSublabel.textContent = "Trang/tháng";
+    if (kpiPagesSublabel) kpiPagesSublabel.textContent = isScopeAll ? "Trang/tháng" : `Trang & phân hệ (${scope.label})`;
     if (kpiPagesSub) {
         kpiPagesSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.pages} trang | ${yearDetailText}: ${totalPagesYear} trang)`
-            : `(${scope.shortLabel}: ${scopePages} | Tổng kho: ${allTime.pages} trang)`;
+            : `(${scope.shortLabel}: ${scopePages} trang | ${yearDetailText}: ${totalPagesYear} trang | Tổng: ${allTime.pages})`;
     }
 
     // 5. NHÂN SỰ: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 cb)
@@ -687,7 +794,7 @@ function renderKpiCards(filteredMonths) {
     const kpiStaffSublabel = document.getElementById("kpiStaffSublabel");
     const kpiStaffSub = document.getElementById("kpiStaffSub");
     if (kpiStaffVal) kpiStaffVal.textContent = isScopeAll ? (currentMonthObj.staff || 0) : scopeStaff;
-    if (kpiStaffSublabel) kpiStaffSublabel.textContent = "Cán bộ & Quản trị";
+    if (kpiStaffSublabel) kpiStaffSublabel.textContent = isScopeAll ? "Cán bộ & Quản trị" : `Cán bộ tăng thêm (${scope.label})`;
     if (kpiStaffSub) {
         kpiStaffSub.textContent = isScopeAll
             ? `(Tổng: ${allTime.staff} cán bộ | ${isYearAll ? 'Tích lũy' : 'Tăng năm ' + currentYear}: +${totalStaffYear})`
@@ -699,11 +806,11 @@ function renderKpiCards(filteredMonths) {
     const kpiCatSublabel = document.getElementById("kpiCatSublabel");
     const kpiCatSub = document.getElementById("kpiCatSub");
     if (kpiCatVal) kpiCatVal.textContent = isScopeAll ? (currentMonthObj.categories || 0) : scopeCat;
-    if (kpiCatSublabel) kpiCatSublabel.textContent = "Danh mục bài viết/tháng";
+    if (kpiCatSublabel) kpiCatSublabel.textContent = isScopeAll ? "Danh mục bài viết/tháng" : `Danh mục bài viết (${scope.label})`;
     if (kpiCatSub) {
         kpiCatSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.categories} danh mục | ${yearDetailText}: ${totalCatYear} dm)`
-            : `(${scope.shortLabel}: ${scopeCat} | Tổng kho: ${allTime.categories} danh mục)`;
+            : `(${scope.shortLabel}: ${scopeCat} dm | ${yearDetailText}: ${totalCatYear} dm | Tổng: ${allTime.categories})`;
     }
 
     // 7. THƯ VIỆN MEDIA: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 10 ảnh)
@@ -711,11 +818,11 @@ function renderKpiCards(filteredMonths) {
     const kpiMediaSublabel = document.getElementById("kpiMediaSublabel");
     const kpiMediaSub = document.getElementById("kpiMediaSub");
     if (kpiMediaVal) kpiMediaVal.textContent = isScopeAll ? (currentMonthObj.images || 0) : scopeImages;
-    if (kpiMediaSublabel) kpiMediaSublabel.textContent = "Ảnh / Kho Media";
+    if (kpiMediaSublabel) kpiMediaSublabel.textContent = isScopeAll ? "Ảnh / Kho Media" : `Ảnh Media tải lên (${scope.label})`;
     if (kpiMediaSub) {
         kpiMediaSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.images} tệp | ${yearDetailText}: ${totalImagesYear} ảnh)`
-            : `(${scope.shortLabel}: ${scopeImages} | Tổng kho: ${allTime.images} tệp)`;
+            : `(${scope.shortLabel}: ${scopeImages} ảnh | ${yearDetailText}: ${totalImagesYear} ảnh | Tổng: ${allTime.images})`;
     }
 
     // 8. BÁO CÁO: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 bc)
@@ -723,11 +830,17 @@ function renderKpiCards(filteredMonths) {
     const kpiReportSublabel = document.getElementById("kpiReportSublabel");
     const kpiReportSub = document.getElementById("kpiReportSub");
     if (kpiReportVal) kpiReportVal.textContent = isScopeAll ? (currentMonthObj.reports || 0) : scopeReports;
-    if (kpiReportSublabel) kpiReportSublabel.textContent = "Báo cáo/tháng";
+    if (kpiReportSublabel) kpiReportSublabel.textContent = isScopeAll ? "Báo cáo/tháng" : `Báo cáo ban hành (${scope.label})`;
     if (kpiReportSub) {
         kpiReportSub.textContent = isScopeAll
             ? `(Tổng kho: ${allTime.reports} báo cáo | ${yearDetailText}: ${totalReportsYear})`
-            : `(${scope.shortLabel}: ${scopeReports} | Tổng kho: ${allTime.reports} báo cáo)`;
+            : `(${scope.shortLabel}: ${scopeReports} bc | ${yearDetailText}: ${totalReportsYear} bc | Tổng: ${allTime.reports})`;
+    }
+
+    // Điều khiển hiển thị nút Xem tất cả 12 tháng ở bảng chi tiết
+    const btnResetScopeAll = document.getElementById("btnResetScopeAll");
+    if (btnResetScopeAll) {
+        btnResetScopeAll.style.display = isScopeAll ? "none" : "inline-flex";
     }
 
     // Cập nhật text trong Legend biểu đồ chính theo đúng phạm vi lọc
@@ -781,7 +894,7 @@ function renderMainChart() {
     const ctx = canvas.getContext("2d");
 
     // Chiều rộng cột tự co giãn thẩm mỹ theo số lượng tháng hiển thị
-    const maxBarWidth = labels.length <= 3 ? 46 : (labels.length <= 6 ? 38 : 28);
+    const maxBarWidth = labels.length <= 1 ? 58 : (labels.length <= 3 ? 46 : (labels.length <= 6 ? 38 : 28));
 
     const datasets = [
         {
@@ -795,8 +908,8 @@ function renderMainChart() {
             tension: 0.35,
             fill: false,
             pointBackgroundColor: "#10b981",
-            pointRadius: mainChartType === 'line' ? 4.5 : 0,
-            pointHoverRadius: 6
+            pointRadius: mainChartType === 'line' ? (labels.length === 1 ? 6.5 : 4.5) : 0,
+            pointHoverRadius: labels.length === 1 ? 8.5 : 6
         },
         {
             label: "Thông báo ban hành",
@@ -809,8 +922,8 @@ function renderMainChart() {
             tension: 0.35,
             fill: false,
             pointBackgroundColor: "#0284c7",
-            pointRadius: mainChartType === 'line' ? 4.5 : 0,
-            pointHoverRadius: 6
+            pointRadius: mainChartType === 'line' ? (labels.length === 1 ? 6.5 : 4.5) : 0,
+            pointHoverRadius: labels.length === 1 ? 8.5 : 6
         },
         {
             label: "Báo cáo ban hành",
@@ -823,8 +936,8 @@ function renderMainChart() {
             tension: 0.35,
             fill: false,
             pointBackgroundColor: "#f59e0b",
-            pointRadius: mainChartType === 'line' ? 4.5 : 0,
-            pointHoverRadius: 6
+            pointRadius: mainChartType === 'line' ? (labels.length === 1 ? 6.5 : 4.5) : 0,
+            pointHoverRadius: labels.length === 1 ? 8.5 : 6
         }
     ];
 
@@ -942,12 +1055,12 @@ function renderMiniCharts() {
     if (badge1) {
         badge1.textContent = isAll 
             ? `Tháng ${currentMonth}: ${currentMonthObj.publishedPosts} bài viết` 
-            : `${scope.shortLabel}: ${scopePosts} bài viết`;
+            : `${scope.label}: ${scopePosts} bài viết`;
     }
     if (foot1) {
         foot1.innerHTML = isAll
             ? `<i class="fa-solid fa-circle-check text-emerald"></i> ${totalPostsYear} Bài viết ${isYearAll ? 'tích lũy' : 'năm ' + currentYear} (Tổng kho: ${allTime.posts})`
-            : `<i class="fa-solid fa-circle-check text-emerald"></i> ${scopePosts} Bài viết trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-circle-check text-emerald"></i> ${scopePosts} Bài viết trong ${scope.label}`;
     }
 
     // 2. Cập nhật Mini 2 (Tần suất tải ảnh)
@@ -956,12 +1069,12 @@ function renderMiniCharts() {
     if (badge2) {
         badge2.textContent = isAll
             ? `THÁNG ${currentMonth}: ${currentMonthObj.images} Ảnh`
-            : `${scope.shortLabel.toUpperCase()}: ${scopeImages} Ảnh`;
+            : `${scope.label.toUpperCase()}: ${scopeImages} Ảnh`;
     }
     if (foot2) {
         foot2.innerHTML = isAll
             ? `<i class="fa-solid fa-images" style="color: #8b5cf6;"></i> ${totalImagesYear} Ảnh ${isYearAll ? 'tích lũy' : 'năm ' + currentYear} (Tổng kho: ${allTime.images} tệp)`
-            : `<i class="fa-solid fa-images" style="color: #8b5cf6;"></i> ${scopeImages} Ảnh trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-images" style="color: #8b5cf6;"></i> ${scopeImages} Ảnh trong ${scope.label}`;
     }
 
     // 3. Cập nhật Mini 3 (Thông báo)
@@ -970,12 +1083,12 @@ function renderMiniCharts() {
     if (badge3) {
         badge3.textContent = isAll
             ? `Tháng ${currentMonth}: ${currentMonthObj.announcements} Thông báo`
-            : `${scope.shortLabel}: ${scopeAnnounce} Thông báo`;
+            : `${scope.label}: ${scopeAnnounce} Thông báo`;
     }
     if (foot3) {
         foot3.innerHTML = isAll
             ? `<i class="fa-solid fa-bullhorn" style="color: #0284c7;"></i> ${totalAnnounceYear} Thông báo ${isYearAll ? 'tích lũy' : 'năm ' + currentYear} (Tổng kho: ${allTime.announcements})`
-            : `<i class="fa-solid fa-bullhorn" style="color: #0284c7;"></i> ${scopeAnnounce} Thông báo trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-bullhorn" style="color: #0284c7;"></i> ${scopeAnnounce} Thông báo trong ${scope.label}`;
     }
 
     // 4. Cập nhật Mini 4 (Báo cáo)
@@ -984,12 +1097,12 @@ function renderMiniCharts() {
     if (badge4) {
         badge4.textContent = isAll
             ? `Tháng ${currentMonth}: ${currentMonthObj.reports} Báo cáo`
-            : `${scope.shortLabel}: ${scopeReports} Báo cáo`;
+            : `${scope.label}: ${scopeReports} Báo cáo`;
     }
     if (foot4) {
         foot4.innerHTML = isAll
             ? `<i class="fa-solid fa-file-contract" style="color: #e11d48;"></i> ${totalReportsYear} Báo cáo ${isYearAll ? 'tích lũy' : 'năm ' + currentYear} (Tổng kho: ${allTime.reports})`
-            : `<i class="fa-solid fa-file-contract" style="color: #e11d48;"></i> ${scopeReports} Báo cáo trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-file-contract" style="color: #e11d48;"></i> ${scopeReports} Báo cáo trong ${scope.label}`;
     }
 
     // 5. Cập nhật Mini 5 (Trang & Phân hệ)
@@ -998,12 +1111,12 @@ function renderMiniCharts() {
     if (badge5) {
         badge5.textContent = isAll
             ? `Tháng ${currentMonth}: ${currentMonthObj.pages} Trang`
-            : `${scope.shortLabel}: ${scopePages} Trang`;
+            : `${scope.label}: ${scopePages} Trang`;
     }
     if (foot5) {
         foot5.innerHTML = isAll
             ? `<i class="fa-solid fa-cubes" style="color: #0d9488;"></i> ${totalPagesYear} Trang ${isYearAll ? 'tích lũy' : 'tạo mới năm ' + currentYear} (Tổng kho: ${allTime.pages} trang)`
-            : `<i class="fa-solid fa-cubes" style="color: #0d9488;"></i> ${scopePages} Trang trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-cubes" style="color: #0d9488;"></i> ${scopePages} Trang trong ${scope.label}`;
     }
 
     // 6. Cập nhật Mini 6 (Danh mục bài viết)
@@ -1012,12 +1125,12 @@ function renderMiniCharts() {
     if (badge6) {
         badge6.textContent = isAll
             ? `Tháng ${currentMonth}: ${currentMonthObj.categories} Danh mục`
-            : `${scope.shortLabel}: ${scopeCat} Danh mục`;
+            : `${scope.label}: ${scopeCat} Danh mục`;
     }
     if (foot6) {
         foot6.innerHTML = isAll
             ? `<i class="fa-solid fa-folder-tree" style="color: #7c3aed;"></i> ${totalCatYear} Danh mục ${isYearAll ? 'tích lũy' : 'tạo mới năm ' + currentYear} (Tổng kho: ${allTime.categories} dm)`
-            : `<i class="fa-solid fa-folder-tree" style="color: #7c3aed;"></i> ${scopeCat} Danh mục trong ${scope.shortLabel}`;
+            : `<i class="fa-solid fa-folder-tree" style="color: #7c3aed;"></i> ${scopeCat} Danh mục trong ${scope.label}`;
     }
 
     // Vẽ 1. Bài viết đã đăng / Tháng (Xanh lá cây ngọc)
@@ -1105,7 +1218,59 @@ function renderSingleMiniChart(canvasId, currentInstance, setInstance, labels, d
     }
 
     const ctx = canvas.getContext("2d");
-    const inst = new Chart(ctx, {
+    const isSingle = labels.length === 1;
+
+    const chartConfig = isSingle ? {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: borderColor,
+                borderRadius: 5,
+                maxBarThickness: 32
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "rgba(15, 23, 42, 0.85)",
+                    padding: 6,
+                    cornerRadius: 6,
+                    callbacks: {
+                        title: function(items) {
+                            const mObj = monthsList ? monthsList[items[0].dataIndex] : null;
+                            const yrText = currentYear === 'all' ? 'Tổng kho' : currentYear;
+                            return mObj ? `${mObj.monthName} / ${yrText}` : `Tháng ${items[0].label}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: "#64748b",
+                        font: { size: 10, weight: '600' }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: Math.max(...data, 4) + 1,
+                    grid: { color: "#f8fafc" },
+                    ticks: {
+                        color: "#cbd5e1",
+                        font: { size: 9 },
+                        stepSize: 1,
+                        maxTicksLimit: 4
+                    }
+                }
+            }
+        }
+    } : {
         type: 'line',
         data: {
             labels: labels,
@@ -1158,8 +1323,9 @@ function renderSingleMiniChart(canvasId, currentInstance, setInstance, labels, d
                 }
             }
         }
-    });
+    };
 
+    const inst = new Chart(ctx, chartConfig);
     setInstance(inst);
 }
 
@@ -1230,7 +1396,10 @@ function renderTable(months) {
 
         // Đánh dấu tháng 10 hiện tại nếu đang trong năm 2026
         const isCurrentMonth = (m.month === currentMonth && currentYear === 2026);
-        if (isCurrentMonth) {
+        const isSelectedMonth = (scope.isSingleMonth && scope.months.includes(m.month));
+        if (isSelectedMonth) {
+            tr.className = isCurrentMonth ? "row-current-month row-selected" : "row-selected";
+        } else if (isCurrentMonth) {
             tr.className = "row-current-month";
         }
 
@@ -1244,10 +1413,11 @@ function renderTable(months) {
         const pendingBadge = pending > 0 ? `<span class="pill-badge pill-orange">${pending} bài</span>` : `0 bài`;
         const imagesBadge = images > 0 ? `<span class="pill-badge pill-purple">${images} ảnh</span>` : `0 ảnh`;
 
-        // Tên tháng (làm nổi bật màu xanh nếu là tháng hiện tại)
-        const monthColHtml = isCurrentMonth
+        // Tên tháng (làm nổi bật và cho phép bấm chọn nhanh để lọc theo tháng)
+        const monthDisplayName = isCurrentMonth
             ? `<strong class="text-emerald">${m.monthName}</strong>`
             : `<strong>${m.monthName}</strong>`;
+        const monthColHtml = `<a href="javascript:void(0)" class="month-scope-link" onclick="selectScopeMonth(${m.month})" title="Bấm để lọc xem riêng số liệu ${m.monthName}">${monthDisplayName}</a>`;
         const isYearAll = (currentYear === 'all');
         const yearForEdit = isYearAll ? 2026 : currentYear;
         tr.id = `reportTableRow_m${m.month}`;

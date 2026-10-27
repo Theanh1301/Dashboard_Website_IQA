@@ -310,13 +310,28 @@
                         <div class="select-wrapper">
                             <label for="scopeFilter">Phạm vi:</label>
                             <select id="scopeFilter" class="custom-select">
-                                <option value="all" selected>12 tháng</option>
+                                <option value="all" selected>12 tháng (Toàn năm)</option>
+                                <option value="last3">3 tháng gần nhất (T8 - T10)</option>
                                 <option value="q1">Quý 1 (T1 - T3)</option>
                                 <option value="q2">Quý 2 (T4 - T6)</option>
                                 <option value="q3">Quý 3 (T7 - T9)</option>
                                 <option value="q4">Quý 4 (T10 - T12)</option>
                                 <option value="h1">6 tháng đầu năm (T1 - T6)</option>
                                 <option value="h2">6 tháng cuối năm (T7 - T12)</option>
+                                <optgroup label="Từng tháng cụ thể">
+                                    <option value="m1">Tháng 1</option>
+                                    <option value="m2">Tháng 2</option>
+                                    <option value="m3">Tháng 3</option>
+                                    <option value="m4">Tháng 4</option>
+                                    <option value="m5">Tháng 5</option>
+                                    <option value="m6">Tháng 6</option>
+                                    <option value="m7">Tháng 7</option>
+                                    <option value="m8">Tháng 8</option>
+                                    <option value="m9">Tháng 9</option>
+                                    <option value="m10">Tháng 10 (Hiện tại)</option>
+                                    <option value="m11">Tháng 11</option>
+                                    <option value="m12">Tháng 12</option>
+                                </optgroup>
                             </select>
                         </div>
 
@@ -496,6 +511,10 @@
                             <p class="table-card-subtitle" id="tableCardSubtitle">Tổng hợp cụ thể bài viết đã đăng, thông báo, báo cáo, trang, danh mục, bài chờ đăng và ảnh media theo từng tháng (Dữ liệu thực tế)</p>
                         </div>
                         <div class="table-actions">
+                            <button class="btn-sig-action" id="btnResetScopeAll" style="display: none; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; cursor: pointer; font-weight: 600;" title="Xem lại tất cả 12 tháng">
+                                <i class="fa-solid fa-calendar-days"></i>
+                                <span>Xem tất cả 12 tháng</span>
+                            </button>
                             <button class="btn-table-update" id="btnTableUpdateData" title="Cập nhật số liệu của tháng">
                                 <i class="fa-solid fa-pen-to-square"></i>
                                 <span>Cập nhật dữ liệu</span>
