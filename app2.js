@@ -88,20 +88,27 @@ const DEFAULT_TRANSACTIONS = [
 ];
 
 // Trạng thái ứng dụng
+const nowApp2 = new Date();
+const currentRealtimeYear2 = nowApp2.getFullYear();
+const currentRealtimeMonth2 = nowApp2.getMonth() + 1;
+
 let currentGoogleSheetUrl = DEFAULT_GOOGLE_SHEET_URL;
 let currentYear = 2026;
 let selectedMonth = 'all'; // 'all' hoặc 1..12
 let currentChartType = 'bar'; // 'bar' hoặc 'line'
-let transactionsData = [...DEFAULT_TRANSACTIONS];
+let transactionsData = (typeof RAW_FINANCE_SHEET_DATA !== 'undefined' && Array.isArray(RAW_FINANCE_SHEET_DATA) && RAW_FINANCE_SHEET_DATA.length > 0)
+    ? [...RAW_FINANCE_SHEET_DATA]
+    : [...DEFAULT_TRANSACTIONS];
 
 // Số liệu tổng hợp 12 tháng
 let monthlyStatsData = {
     2026: [],
-    2025: []
+    2025: [],
+    all: []
 };
 
-// SỐ LIỆU CUỐI CÙNG CỦA CỘT SỐ TIỀN CÒN LẠI (YÊU CẦU ĐẶC BIỆT CỦA NGƯỜI DÙNG)
-let latestRemainingBalance = 43311351;
+// SỐ LIỆU CUỐI CÙNG CỦA CỘT SỐ TIỀN CÒN LẠI (chuẩn theo Google Sheet)
+let latestRemainingBalance = 17112779;
 
 // Khai báo hàm mở Modal thêm giao dịch mới ngay tại cấp cao nhất
 window.openAddTransactionModal = function() {
@@ -250,9 +257,15 @@ function initApp() {
         try {
             const parsedList = JSON.parse(savedFinanceTx);
             if (Array.isArray(parsedList) && parsedList.length > 0) {
-                if (savedFinanceBal) latestRemainingBalance = cleanMoneyToNumber(savedFinanceBal);
-                applyNewFinanceRows(parsedList, "Dữ liệu lưu trữ mới nhất");
-                restoredFromStorage = true;
+                // Nếu dữ liệu trong RAW_FINANCE_SHEET_DATA nhiều hơn bản lưu cũ, ưu tiên dùng dữ liệu sheet đầy đủ
+                if (window.RAW_FINANCE_SHEET_DATA && Array.isArray(window.RAW_FINANCE_SHEET_DATA) && window.RAW_FINANCE_SHEET_DATA.length > parsedList.length) {
+                    applyNewFinanceRows(window.RAW_FINANCE_SHEET_DATA, "Google Sheet (Đã đồng bộ)");
+                    restoredFromStorage = true;
+                } else {
+                    if (savedFinanceBal) latestRemainingBalance = cleanMoneyToNumber(savedFinanceBal);
+                    applyNewFinanceRows(parsedList, "Dữ liệu lưu trữ mới nhất");
+                    restoredFromStorage = true;
+                }
             }
         } catch(e) {}
     }
@@ -263,6 +276,10 @@ function initApp() {
         } else {
             applyNewFinanceRows(DEFAULT_TRANSACTIONS, "Dữ liệu Google Sheet");
         }
+    }
+
+    if (typeof updateMonthFilterOptions === 'function') {
+        updateMonthFilterOptions();
     }
 
     // 2. Thử đồng bộ trực tiếp qua mạng từ Google Sheet URL
@@ -358,21 +375,29 @@ function parseDateString(timeStr) {
     const str = String(timeStr).trim();
     if (!str) return null;
 
-    const matchVn = str.match(/(?:ngày\s+)?(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i);
+    const matchVn = str.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if (matchVn) {
+        let da = parseInt(matchVn[1], 10);
+        let mo = parseInt(matchVn[2], 10);
+        let yr = parseInt(matchVn[3], 10);
+        if (yr === 2027 && mo === 10) yr = 2026; // Chuẩn hóa dòng gõ nhầm 2027 thành 2026
         return {
-            day: parseInt(matchVn[1], 10),
-            month: parseInt(matchVn[2], 10),
-            year: parseInt(matchVn[3], 10)
+            day: da,
+            month: mo,
+            year: yr
         };
     }
 
     const matchIso = str.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
     if (matchIso) {
+        let yr = parseInt(matchIso[1], 10);
+        let mo = parseInt(matchIso[2], 10);
+        let da = parseInt(matchIso[3], 10);
+        if (yr === 2027 && mo === 10) yr = 2026;
         return {
-            year: parseInt(matchIso[1], 10),
-            month: parseInt(matchIso[2], 10),
-            day: parseInt(matchIso[3], 10)
+            year: yr,
+            month: mo,
+            day: da
         };
     }
 
@@ -615,45 +640,9 @@ function applyNewFinanceRows(records, sourceName) {
 
     transactionsData = formattedList;
 
-    // TÍNH TOÁN BẢNG 12 THÁNG NĂM 2026 THEO SỐ LIỆU CHUẨN XÁC CỦA GOOGLE SHEET
-    // Tháng 10:
-    // - Tổng số tiền đã chi: totalExpenseSum (2.969.659 ₫)
-    // - Tổng số tiền tăng: totalIncomeSum (0 ₫)
-    // - Số tiền còn lại: latestRemainingBalance (43.311.351 ₫)
-    const monthly2026 = [];
-    for (let m = 1; m <= 12; m++) {
-        if (m === 10) {
-            monthly2026.push({
-                month: 10,
-                monthName: "Tháng 10",
-                income: totalIncomeSum,
-                expense: totalExpenseSum,
-                balance: latestRemainingBalance,
-                note: "Tháng hiện tại (Realtime theo Google Sheet)"
-            });
-        } else if (m < 10) {
-            // Các tháng trước chưa phát sinh bản ghi trên sheet này
-            monthly2026.push({
-                month: m,
-                monthName: `Tháng ${m}`,
-                income: 0,
-                expense: 0,
-                balance: latestRemainingBalance + totalExpenseSum, // Số dư trước khi chi trong Tháng 10
-                note: "Đã quyết toán"
-            });
-        } else {
-            // Tháng 11 & 12
-            monthly2026.push({
-                month: m,
-                monthName: `Tháng ${m}`,
-                income: 0,
-                expense: 0,
-                balance: latestRemainingBalance,
-                note: "Chưa phát sinh"
-            });
-        }
-    }
-    monthlyStatsData[2026] = monthly2026;
+    // TÍNH TOÁN BẢNG 12 THÁNG ĐỘNG THEO SỐ LIỆU THỰC TẾ
+    calculateMonthlyStatsData2();
+    updateMonthFilterOptions();
 
     // Lưu bền vững vào localStorage
     try {
@@ -668,6 +657,113 @@ function applyNewFinanceRows(records, sourceName) {
     if (syncStatusTextEl) {
         syncStatusTextEl.textContent = `${sourceName} (${transactionsData.length} giao dịch • Số dư còn lại: ${formatCurrency(latestRemainingBalance)})`;
     }
+}
+
+/**
+ * Cập nhật các tùy chọn dropdown Tháng động theo tháng thực tế
+ */
+function updateMonthFilterOptions() {
+    if (!monthFilterEl) return;
+    const now = new Date();
+    const curM = now.getMonth() + 1;
+    const curY = now.getFullYear();
+
+    let html = `<option value="all" ${selectedMonth === 'all' ? 'selected' : ''}>Toàn bộ 12 tháng</option>`;
+    for (let m = 1; m <= 12; m++) {
+        const isCurrent = (m === curM && (currentYear === curY || currentYear === 'all'));
+        const tag = isCurrent ? ' (Hiện tại)' : '';
+        const isSel = selectedMonth === m ? 'selected' : '';
+        html += `<option value="${m}" ${isSel}>Tháng ${m}${tag}</option>`;
+    }
+    monthFilterEl.innerHTML = html;
+}
+
+/**
+ * Tính toán thống kê 12 tháng động từ danh sách giao dịch thực tế
+ */
+function calculateMonthlyStatsData2() {
+    const now = new Date();
+    const curM = now.getMonth() + 1;
+    const curY = now.getFullYear();
+
+    const monthNames = [
+        "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+        "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
+    ];
+
+    const years = [2026, 2025];
+
+    years.forEach(yr => {
+        const list = [];
+        for (let m = 1; m <= 12; m++) {
+            const mTx = transactionsData.filter(t => t.year === yr && t.month === m);
+            let mInc = 0;
+            let mExp = 0;
+            let lastBalInMonth = null;
+
+            mTx.forEach(t => {
+                mInc += (cleanMoneyToNumber(t.income) || 0);
+                mExp += (cleanMoneyToNumber(t.expense) || 0);
+                if (t.balance && cleanMoneyToNumber(t.balance) > 0) {
+                    lastBalInMonth = cleanMoneyToNumber(t.balance);
+                }
+            });
+
+            let monthBal = lastBalInMonth !== null ? lastBalInMonth : latestRemainingBalance;
+
+            const isCurrentMonth = (m === curM && (yr === curY || yr === 2026));
+            let note = "";
+            if (isCurrentMonth) {
+                note = "Tháng hiện tại (Realtime theo Google Sheet)";
+            } else if (mTx.length > 0) {
+                note = "Đã quyết toán";
+            } else if (m < curM && yr === curY) {
+                note = "Đã quyết toán";
+            } else {
+                note = "Chưa phát sinh";
+            }
+
+            list.push({
+                month: m,
+                monthName: monthNames[m - 1],
+                income: mInc,
+                expense: mExp,
+                balance: monthBal,
+                count: mTx.length,
+                note: note
+            });
+        }
+        monthlyStatsData[yr] = list;
+    });
+
+    // Năm 'all'
+    const listAll = [];
+    for (let m = 1; m <= 12; m++) {
+        let mInc = 0;
+        let mExp = 0;
+        let mCount = 0;
+        let mBal = latestRemainingBalance;
+        years.forEach(yr => {
+            if (monthlyStatsData[yr] && monthlyStatsData[yr][m - 1]) {
+                const r = monthlyStatsData[yr][m - 1];
+                mInc += r.income;
+                mExp += r.expense;
+                mCount += (r.count || 0);
+                if (r.balance) mBal = r.balance;
+            }
+        });
+        const isCurrentMonth = (m === curM);
+        listAll.push({
+            month: m,
+            monthName: monthNames[m - 1],
+            income: mInc,
+            expense: mExp,
+            balance: mBal,
+            count: mCount,
+            note: isCurrentMonth ? "Tháng hiện tại (Realtime theo Google Sheet)" : (mCount > 0 ? "Đã quyết toán" : "Chưa phát sinh")
+        });
+    }
+    monthlyStatsData['all'] = listAll;
 }
 
 /**
@@ -693,33 +789,60 @@ function renderAllData() {
  * - Số tiền còn lại: 43.311.351 ₫ (Số liệu cuối cùng của cột Số tiền còn lại)
  */
 function renderTopStatCards() {
-    const month10Data = monthlyStatsData[2026] ? monthlyStatsData[2026][9] : null;
+    const now = new Date();
+    const curM = now.getMonth() + 1;
+    const curY = now.getFullYear();
 
-    const totalExp10 = month10Data ? month10Data.expense : 2969659;
-    const totalInc10 = month10Data ? month10Data.income : 0;
-    const finalBal = latestRemainingBalance; // 43.311.351 ₫
+    const yr = currentYear === 'all' ? 2026 : currentYear;
+    const yearList = monthlyStatsData[yr] || monthlyStatsData[2026] || [];
+
+    const displayMonth = selectedMonth === 'all' ? curM : selectedMonth;
+    const monthStats = yearList[displayMonth - 1] || { income: 0, expense: 0, balance: latestRemainingBalance, count: 0 };
+
+    const dispInc = monthStats.income || 0;
+    const dispExp = monthStats.expense || 0;
+    const dispCount = (typeof monthStats.count !== 'undefined') ? monthStats.count : transactionsData.filter(t => (currentYear === 'all' || t.year === yr) && t.month === displayMonth).length;
+    const finalBal = latestRemainingBalance;
+
+    let totalYearInc = 0;
+    let totalYearExp = 0;
+    yearList.forEach(r => {
+        totalYearInc += (r.income || 0);
+        totalYearExp += (r.expense || 0);
+    });
+
+    const isAll = (selectedMonth === 'all');
+    const yearStr = currentYear === 'all' ? 'Toàn bộ các năm' : `năm ${currentYear}`;
 
     // 1. Thẻ Tổng số tiền tăng / tháng
-    if (totalIncomeCountEl) totalIncomeCountEl.textContent = formatCurrency(totalInc10);
-    if (cardIncomeCaptionEl) cardIncomeCaptionEl.textContent = "TỔNG SỐ TIỀN TĂNG / THÁNG 10 (HIỆN TẠI)";
-    if (currentMonthIncomeLabelEl) currentMonthIncomeLabelEl.textContent = `Khoản thu phát sinh trong Tháng 10: ${formatCurrency(totalInc10)}`;
-    if (cardIncomeFooterEl) cardIncomeFooterEl.textContent = `Tổng tiền tăng cả năm 2026: ${formatCurrency(totalInc10)}`;
+    if (totalIncomeCountEl) totalIncomeCountEl.textContent = formatCurrency(dispInc);
+    if (cardIncomeCaptionEl) cardIncomeCaptionEl.textContent = isAll
+        ? `TỔNG SỐ TIỀN TĂNG / THÁNG ${displayMonth} (HIỆN TẠI)`
+        : `TỔNG SỐ TIỀN TĂNG / THÁNG ${displayMonth}`;
+    if (currentMonthIncomeLabelEl) currentMonthIncomeLabelEl.textContent = isAll
+        ? `Khoản thu phát sinh trong Tháng ${displayMonth} hiện tại: ${formatCurrency(dispInc)}`
+        : `Khoản thu phát sinh trong Tháng ${displayMonth} (${yearStr}): ${formatCurrency(dispInc)}`;
+    if (cardIncomeFooterEl) cardIncomeFooterEl.textContent = `Tổng tiền tăng cả ${yearStr}: ${formatCurrency(totalYearInc)}`;
 
     // 2. Thẻ Tổng số tiền đã chi / tháng
-    if (totalExpenseCountEl) totalExpenseCountEl.textContent = formatCurrency(totalExp10);
-    if (cardExpenseCaptionEl) cardExpenseCaptionEl.textContent = "TỔNG SỐ TIỀN ĐÃ CHI / THÁNG 10 (HIỆN TẠI)";
-    if (currentMonthExpenseLabelEl) currentMonthExpenseLabelEl.textContent = `Tổng các khoản đã chi trong Tháng 10: ${formatCurrency(totalExp10)} (6 giao dịch)`;
-    if (cardExpenseFooterEl) cardExpenseFooterEl.textContent = `Tổng tiền đã chi cả năm 2026: ${formatCurrency(totalExp10)}`;
+    if (totalExpenseCountEl) totalExpenseCountEl.textContent = formatCurrency(dispExp);
+    if (cardExpenseCaptionEl) cardExpenseCaptionEl.textContent = isAll
+        ? `TỔNG SỐ TIỀN ĐÃ CHI / THÁNG ${displayMonth} (HIỆN TẠI)`
+        : `TỔNG SỐ TIỀN ĐÃ CHI / THÁNG ${displayMonth}`;
+    if (currentMonthExpenseLabelEl) currentMonthExpenseLabelEl.textContent = isAll
+        ? `Tổng các khoản đã chi trong Tháng ${displayMonth} hiện tại: ${formatCurrency(dispExp)} (${dispCount} giao dịch)`
+        : `Tổng các khoản đã chi trong Tháng ${displayMonth} (${yearStr}): ${formatCurrency(dispExp)} (${dispCount} giao dịch)`;
+    if (cardExpenseFooterEl) cardExpenseFooterEl.textContent = `Tổng tiền đã chi cả ${yearStr}: ${formatCurrency(totalYearExp)}`;
 
-    // 3. Thẻ Số tiền còn lại (ĐẶC BIỆT CẬP NHẬT SỐ LIỆU CUỐI CÙNG CỦA CỘT SỐ TIỀN CÒN LẠI)
+    // 3. Thẻ Số tiền còn lại
     if (totalBalanceCountEl) totalBalanceCountEl.textContent = formatCurrency(finalBal);
     if (cardBalanceCaptionEl) cardBalanceCaptionEl.textContent = "SỐ TIỀN CÒN LẠI (SỐ LIỆU CUỐI CÙNG TRÊN SHEET)";
     if (currentMonthBalanceLabelEl) currentMonthBalanceLabelEl.textContent = `Số tiền còn lại cuối cùng theo Google Sheet: ${formatCurrency(finalBal)}`;
-    if (cardBalanceFooterEl) cardBalanceFooterEl.textContent = `Cập nhật đúng số liệu cuối cùng của cột "Số tiền còn lại" (43.311.351 ₫)`;
+    if (cardBalanceFooterEl) cardBalanceFooterEl.textContent = `Cập nhật đúng số liệu cuối cùng của cột "Số tiền còn lại" (${formatCurrency(finalBal)})`;
 
     // Legend Pills
-    if (legendIncomeCountEl) legendIncomeCountEl.textContent = formatCurrency(totalInc10);
-    if (legendExpenseCountEl) legendExpenseCountEl.textContent = formatCurrency(totalExp10);
+    if (legendIncomeCountEl) legendIncomeCountEl.textContent = formatCurrency(dispInc);
+    if (legendExpenseCountEl) legendExpenseCountEl.textContent = formatCurrency(dispExp);
     if (legendBalanceCountEl) legendBalanceCountEl.textContent = formatCurrency(finalBal);
 }
 
@@ -826,18 +949,33 @@ function renderMainFinanceChart() {
  * 3. 2 MINI CHARTS
  */
 function renderMiniCharts() {
-    const month10 = monthlyStatsData[2026] ? monthlyStatsData[2026][9] : { income: 0, expense: 2969659, balance: latestRemainingBalance };
+    const now = new Date();
+    const curM = now.getMonth() + 1;
+    const curY = now.getFullYear();
 
-    // Mini Chart 1: So sánh Chi theo từng ngày trong tháng 10
+    const yr = currentYear === 'all' ? 2026 : currentYear;
+    const yearList = monthlyStatsData[yr] || monthlyStatsData[2026] || [];
+
+    const displayMonth = selectedMonth === 'all' ? curM : selectedMonth;
+    const activeMonthData = yearList[displayMonth - 1] || { income: 0, expense: 0, balance: latestRemainingBalance };
+
+    // Lọc danh sách giao dịch hiển thị trên mini chart 1
+    let txToShow = transactionsData.filter(t => (currentYear === 'all' || t.year === yr));
+    if (selectedMonth !== 'all') {
+        const monthTx = txToShow.filter(t => t.month === selectedMonth);
+        if (monthTx.length > 0) txToShow = monthTx;
+    }
+
+    // Mini Chart 1: So sánh Chi theo từng ngày
     const canvas1 = document.getElementById('chartMiniCompare');
     if (canvas1 && typeof Chart !== 'undefined') {
         if (miniCompareChart) miniCompareChart.destroy();
         const ctx1 = canvas1.getContext('2d');
 
-        const txLabels = transactionsData.map(t => t.time.replace(/Thời gian \d+:\d+ ngày /i, 'Ngày '));
-        const txExpenses = transactionsData.map(t => t.expense);
+        const txLabels = txToShow.map(t => (t.time || t.date || '').replace(/Thời gian \d+:\d+ ngày /i, 'Ngày '));
+        const txExpenses = txToShow.map(t => t.expense);
 
-        const txIncomes = transactionsData.map(t => t.income);
+        const txIncomes = txToShow.map(t => t.income);
         const hasIncome = txIncomes.some(inc => inc > 0);
         const datasets = [
             {
@@ -887,9 +1025,9 @@ function renderMiniCharts() {
         if (miniStructureChart) miniStructureChart.destroy();
         const ctx2 = canvas2.getContext('2d');
 
-        const hasIncome = month10.income > 0;
+        const hasIncome = activeMonthData.income > 0;
         const structLabels = hasIncome ? ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'] : ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
-        const structData = hasIncome ? [month10.expense, month10.income, latestRemainingBalance] : [month10.expense, latestRemainingBalance];
+        const structData = hasIncome ? [activeMonthData.expense, activeMonthData.income, latestRemainingBalance] : [activeMonthData.expense, latestRemainingBalance];
         const structColors = hasIncome ? ['#f43f5e', '#10b981', '#06b6d4'] : ['#f43f5e', '#06b6d4'];
 
         miniStructureChart = new Chart(ctx2, {
@@ -923,7 +1061,7 @@ function renderMiniCharts() {
     // Badge tags
     const badgeCompareStatus = document.getElementById('badgeCompareStatus');
     if (badgeCompareStatus) {
-        badgeCompareStatus.textContent = `Tổng chi: ${formatCurrency(month10.expense)}`;
+        badgeCompareStatus.textContent = `Tổng chi: ${formatCurrency(activeMonthData.expense)}`;
     }
     const badgeDisbursementRate = document.getElementById('badgeDisbursementRate');
     if (badgeDisbursementRate) {
@@ -931,7 +1069,7 @@ function renderMiniCharts() {
     }
     const miniFooterIncome = document.getElementById('miniFooterIncome');
     if (miniFooterIncome) {
-        miniFooterIncome.textContent = `Chi Tháng 10: ${formatCurrency(month10.expense)}`;
+        miniFooterIncome.textContent = `Chi Tháng ${displayMonth}: ${formatCurrency(activeMonthData.expense)}`;
     }
     const miniFooterDisbursement = document.getElementById('miniFooterDisbursement');
     if (miniFooterDisbursement) {
@@ -952,12 +1090,16 @@ function renderMonthlyReportTable() {
     let totalIncome = 0;
     let totalExpense = 0;
 
+    const now = new Date();
+    const curM = now.getMonth() + 1;
+    const curY = now.getFullYear();
+
     yearList.forEach((row) => {
         totalIncome += row.income;
         totalExpense += row.expense;
 
         const net = row.income - row.expense;
-        const isCurrentMonth = (row.month === 10);
+        const isCurrentMonth = (row.month === curM && (currentYear === curY || currentYear === 'all'));
         const rowClass = isCurrentMonth ? 'row-current-month' : '';
 
         const rateStr = row.income > 0 ? ((row.expense / row.income) * 100).toFixed(1) + '%' : (row.expense > 0 ? 'Chi từ quỹ' : '-');
@@ -984,6 +1126,7 @@ function renderMonthlyReportTable() {
             <tr class="${rowClass}">
                 <td>
                     <strong class="${isCurrentMonth ? 'text-emerald' : ''}">${row.monthName}</strong>
+                    ${isCurrentMonth ? '<span class="badge-current-tag" style="font-size: 11px; background: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; margin-left: 4px; font-weight: 600;">(Hiện tại)</span>' : ''}
                 </td>
                 <td><span class="pill-badge ${row.income > 0 ? 'pill-green' : 'pill-gray'}">${formatCurrency(row.income)}</span></td>
                 <td><span class="pill-badge ${row.expense > 0 ? 'pill-rose' : 'pill-gray'}">${formatCurrency(row.expense)}</span></td>
@@ -1095,6 +1238,11 @@ function renderTransactionsTable() {
     const typeFilterVal = transactionTypeFilterEl ? transactionTypeFilterEl.value : 'all';
 
     filteredTransactions = transactionsData.filter(tx => {
+        // Lọc theo năm
+        if (currentYear !== 'all' && tx.year && tx.year !== currentYear) return false;
+        // Lọc theo tháng
+        if (selectedMonth !== 'all' && tx.month && tx.month !== selectedMonth) return false;
+
         // Lọc theo loại (income / expense)
         if (typeFilterVal === 'income' && tx.income <= 0) return false;
         if (typeFilterVal === 'expense' && tx.expense <= 0) return false;
@@ -2139,6 +2287,7 @@ function initEventListeners() {
         yearFilterEl.addEventListener('change', (e) => {
             currentYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
             currentPage = 1;
+            updateMonthFilterOptions();
             renderAllData();
         });
     }

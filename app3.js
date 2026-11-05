@@ -8,8 +8,11 @@
 
 // Trạng thái ứng dụng
 let currentGoogleSheetUrl = DEFAULT_SHEET3_URL;
+const nowApp3 = new Date();
+const currentRealtimeYear3 = nowApp3.getFullYear();
+const currentRealtimeMonth3 = nowApp3.getMonth() + 1;
 let currentYear = 2026;
-let currentMonth = 10; // Tháng 10 hiện tại như trên ảnh
+let currentMonth = currentRealtimeMonth3;
 let selectedScope = 'all'; // 'all' (12 tháng), 'q1', 'q2', 'q3', 'q4', hoặc số 1..12
 let mainChartType = 'bar'; // 'bar' hoặc 'line'
 let yearlyData = JSON.parse(JSON.stringify(INITIAL_YEARLY_DATA));
@@ -94,6 +97,9 @@ function initEventListeners() {
         yearSelect.value = currentYear;
         yearSelect.addEventListener("change", (e) => {
             currentYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+            currentMonth = (currentYear === currentRealtimeYear3 || currentYear === 'all') 
+                ? currentRealtimeMonth3 
+                : (currentYear < currentRealtimeYear3 ? 12 : 1);
             updateScopeFilterOptionsUI();
             renderAll();
             showToast(currentYear === 'all' ? 'Đã chuyển sang xem Tổng kho Toàn bộ các năm' : `Đã chuyển sang số liệu Năm ${currentYear}`, "info");
@@ -456,13 +462,13 @@ function getScopeInfo() {
 
     // 2. Kiểm tra nếu là 3 tháng gần nhất
     if (selectedScope === 'last3') {
-        let endMonth = 10;
-        if (currentYear === 2025) {
+        let endMonth = currentRealtimeMonth3;
+        if (currentYear === 'all' || currentYear === currentRealtimeYear3) {
+            endMonth = currentRealtimeMonth3;
+        } else if (currentYear < currentRealtimeYear3) {
             endMonth = 12;
-        } else if (currentYear === 2026) {
-            endMonth = 10; // Tháng 10 hiện tại của năm học 2026
         } else {
-            endMonth = currentMonth || 10;
+            endMonth = currentMonth || currentRealtimeMonth3;
         }
         const m1 = Math.max(1, endMonth - 2);
         const m2 = Math.max(1, endMonth - 1);
@@ -546,17 +552,28 @@ function updateScopeFilterOptionsUI() {
     const scopeSelect = document.getElementById("scopeFilter");
     if (!scopeSelect) return;
 
+    let endM = currentRealtimeMonth3;
+    if (currentYear === 'all' || currentYear === currentRealtimeYear3) {
+        endM = currentRealtimeMonth3;
+    } else if (currentYear < currentRealtimeYear3) {
+        endM = 12;
+    } else {
+        endM = currentMonth || currentRealtimeMonth3;
+    }
+    const startM = Math.max(1, endM - 2);
+
     // Cập nhật nhãn của tùy chọn "3 tháng gần nhất" theo năm đang chọn
     const last3Option = scopeSelect.querySelector('option[value="last3"]');
     if (last3Option) {
-        if (currentYear === 2025) {
-            last3Option.textContent = "3 tháng gần nhất (T10 - T12)";
-        } else if (currentYear === 2026) {
-            last3Option.textContent = "3 tháng gần nhất (T8 - T10)";
-        } else {
-            const endM = currentMonth || 10;
-            const startM = Math.max(1, endM - 2);
-            last3Option.textContent = `3 tháng gần nhất (T${startM} - T${endM})`;
+        last3Option.textContent = `3 tháng gần nhất (T${startM} - T${endM})`;
+    }
+
+    // Cập nhật thẻ (Hiện tại) cho từng tháng trong dropdown
+    for (let m = 1; m <= 12; m++) {
+        const opt = scopeSelect.querySelector(`option[value="m${m}"]`);
+        if (opt) {
+            const isCur = (m === currentRealtimeMonth3 && (currentYear === currentRealtimeYear3 || currentYear === 'all'));
+            opt.textContent = isCur ? `Tháng ${m} (Hiện tại)` : `Tháng ${m}`;
         }
     }
 }
@@ -741,101 +758,110 @@ function renderKpiCards(filteredMonths) {
         scopeReports += (m.reports || 0);
     });
 
-    const currentMonthObj = allMonths.find(m => m.month === currentMonth) || allMonths[allMonths.length - 1] || {
+    const activeMonthNum = (currentYear === currentRealtimeYear3 || currentYear === 'all') 
+        ? currentRealtimeMonth3 
+        : (currentMonth || (allMonths.length > 0 ? allMonths[allMonths.length - 1].month : 12));
+
+    const currentMonthObj = allMonths.find(m => m.month === activeMonthNum) || allMonths[allMonths.length - 1] || {
         publishedPosts: 0, announcements: 0, pendingPosts: 0, pages: 0, staff: 0, categories: 0, images: 0, reports: 0
     };
 
     const yearDetailText = isYearAll ? "Toàn bộ các năm" : `Năm ${currentYear}`;
+    const monthTag = `Tháng ${activeMonthNum}`;
 
-    // 1. ĐÃ XUẤT BẢN: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 2 bài)
+    // 1. ĐÃ XUẤT BẢN: Số to hiển thị số liệu hàng tháng
     const kpiPostsVal = document.getElementById("kpiPostsValue");
     const kpiPostsSublabel = document.getElementById("kpiPostsSublabel");
     const kpiPostsSub = document.getElementById("kpiPostsSub");
     if (kpiPostsVal) kpiPostsVal.textContent = isScopeAll ? (currentMonthObj.publishedPosts || 0) : scopePosts;
-    if (kpiPostsSublabel) kpiPostsSublabel.textContent = isScopeAll ? "Bài viết đã đăng" : `Bài viết đã đăng (${scope.label})`;
+    if (kpiPostsSublabel) kpiPostsSublabel.textContent = isScopeAll ? `Bài viết đã đăng (${monthTag})` : `Bài viết đã đăng (${scope.label})`;
     if (kpiPostsSub) {
         kpiPostsSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.posts} bài | ${yearDetailText}: ${totalPostsYear} bài)`
+            ? `(${monthTag}: ${currentMonthObj.publishedPosts || 0} bài | ${yearDetailText}: ${totalPostsYear} bài | Tổng: ${allTime.posts})`
             : `(${scope.shortLabel}: ${scopePosts} bài | ${yearDetailText}: ${totalPostsYear} bài | Tổng: ${allTime.posts})`;
     }
 
-    // 2. THÔNG BÁO: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 tb)
+    // 2. THÔNG BÁO: Số to hiển thị số liệu hàng tháng
     const kpiAnnounceVal = document.getElementById("kpiAnnounceValue");
     const kpiAnnounceSublabel = document.getElementById("kpiAnnounceSublabel");
     const kpiAnnounceSub = document.getElementById("kpiAnnounceSub");
     if (kpiAnnounceVal) kpiAnnounceVal.textContent = isScopeAll ? (currentMonthObj.announcements || 0) : scopeAnnounce;
-    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = isScopeAll ? "Thông báo ban hành" : `Thông báo ban hành (${scope.label})`;
+    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = isScopeAll ? `Thông báo ban hành (${monthTag})` : `Thông báo ban hành (${scope.label})`;
     if (kpiAnnounceSub) {
         kpiAnnounceSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.announcements} thông báo | ${yearDetailText}: ${totalAnnounceYear})`
+            ? `(${monthTag}: ${currentMonthObj.announcements || 0} tb | ${yearDetailText}: ${totalAnnounceYear} tb | Tổng: ${allTime.announcements})`
             : `(${scope.shortLabel}: ${scopeAnnounce} tb | ${yearDetailText}: ${totalAnnounceYear} tb | Tổng: ${allTime.announcements})`;
     }
 
-    // 3. CẦN XÉT DUYỆT: Số to hiển thị số liệu hàng tháng (0 bài)
+    // 3. CẦN XÉT DUYỆT: Số to hiển thị số liệu hàng tháng
     const kpiPendingVal = document.getElementById("kpiPendingValue");
     const kpiPendingSublabel = document.getElementById("kpiPendingSublabel");
     const kpiPendingSub = document.getElementById("kpiPendingSub");
     if (kpiPendingVal) kpiPendingVal.textContent = isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending;
-    if (kpiPendingSublabel) kpiPendingSublabel.textContent = isScopeAll ? "Bài viết chờ đăng" : `Bài viết chờ đăng (${scope.label})`;
-    if (kpiPendingSub) kpiPendingSub.textContent = isScopeAll ? `(Đang chờ: ${isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending} bài)` : `(Chờ duyệt ${scope.shortLabel}: ${scopePending} bài)`;
+    if (kpiPendingSublabel) kpiPendingSublabel.textContent = isScopeAll ? `Bài viết chờ đăng (${monthTag})` : `Bài viết chờ đăng (${scope.label})`;
+    if (kpiPendingSub) {
+        kpiPendingSub.textContent = isScopeAll 
+            ? `(${monthTag}: ${currentMonthObj.pendingPosts || 0} bài | Tồn đọng cần xử lý)` 
+            : `(Chờ duyệt ${scope.shortLabel}: ${scopePending} bài)`;
+    }
 
-    // 4. TRANG & PHÂN HỆ: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 5 trang)
+    // 4. TRANG & PHÂN HỆ: Số to hiển thị số liệu hàng tháng
     const kpiPagesVal = document.getElementById("kpiPagesValue");
     const kpiPagesSublabel = document.getElementById("kpiPagesSublabel");
     const kpiPagesSub = document.getElementById("kpiPagesSub");
     if (kpiPagesVal) kpiPagesVal.textContent = isScopeAll ? (currentMonthObj.pages || 0) : scopePages;
-    if (kpiPagesSublabel) kpiPagesSublabel.textContent = isScopeAll ? "Trang/tháng" : `Trang & phân hệ (${scope.label})`;
+    if (kpiPagesSublabel) kpiPagesSublabel.textContent = isScopeAll ? `Trang/tháng (${monthTag})` : `Trang & phân hệ (${scope.label})`;
     if (kpiPagesSub) {
         kpiPagesSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.pages} trang | ${yearDetailText}: ${totalPagesYear} trang)`
+            ? `(${monthTag}: ${currentMonthObj.pages || 0} trang | ${yearDetailText}: ${totalPagesYear} trang | Tổng: ${allTime.pages})`
             : `(${scope.shortLabel}: ${scopePages} trang | ${yearDetailText}: ${totalPagesYear} trang | Tổng: ${allTime.pages})`;
     }
 
-    // 5. NHÂN SỰ: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 cb)
+    // 5. NHÂN SỰ: Số to hiển thị số liệu hàng tháng
     const kpiStaffVal = document.getElementById("kpiStaffValue");
     const kpiStaffSublabel = document.getElementById("kpiStaffSublabel");
     const kpiStaffSub = document.getElementById("kpiStaffSub");
     if (kpiStaffVal) kpiStaffVal.textContent = isScopeAll ? (currentMonthObj.staff || 0) : scopeStaff;
-    if (kpiStaffSublabel) kpiStaffSublabel.textContent = isScopeAll ? "Cán bộ & Quản trị" : `Cán bộ tăng thêm (${scope.label})`;
+    if (kpiStaffSublabel) kpiStaffSublabel.textContent = isScopeAll ? `Cán bộ tăng (${monthTag})` : `Cán bộ tăng thêm (${scope.label})`;
     if (kpiStaffSub) {
         kpiStaffSub.textContent = isScopeAll
-            ? `(Tổng: ${allTime.staff} cán bộ | ${isYearAll ? 'Tích lũy' : 'Tăng năm ' + currentYear}: +${totalStaffYear})`
+            ? `(${monthTag}: +${currentMonthObj.staff || 0} cb | Nhân sự Viện: ${allTime.staff} cán bộ)`
             : `(Tổng: ${allTime.staff} cán bộ | Tăng ${scope.shortLabel}: +${scopeStaff})`;
     }
 
-    // 6. DANH MỤC BÀI VIẾT: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 5 dm)
+    // 6. DANH MỤC BÀI VIẾT: Số to hiển thị số liệu hàng tháng
     const kpiCatVal = document.getElementById("kpiCatValue");
     const kpiCatSublabel = document.getElementById("kpiCatSublabel");
     const kpiCatSub = document.getElementById("kpiCatSub");
     if (kpiCatVal) kpiCatVal.textContent = isScopeAll ? (currentMonthObj.categories || 0) : scopeCat;
-    if (kpiCatSublabel) kpiCatSublabel.textContent = isScopeAll ? "Danh mục bài viết/tháng" : `Danh mục bài viết (${scope.label})`;
+    if (kpiCatSublabel) kpiCatSublabel.textContent = isScopeAll ? `Danh mục bài viết (${monthTag})` : `Danh mục bài viết (${scope.label})`;
     if (kpiCatSub) {
         kpiCatSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.categories} danh mục | ${yearDetailText}: ${totalCatYear} dm)`
+            ? `(${monthTag}: ${currentMonthObj.categories || 0} dm | ${yearDetailText}: ${totalCatYear} dm | Tổng: ${allTime.categories})`
             : `(${scope.shortLabel}: ${scopeCat} dm | ${yearDetailText}: ${totalCatYear} dm | Tổng: ${allTime.categories})`;
     }
 
-    // 7. THƯ VIỆN MEDIA: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 10 ảnh)
+    // 7. THƯ VIỆN MEDIA: Số to hiển thị số liệu hàng tháng
     const kpiMediaVal = document.getElementById("kpiMediaValue");
     const kpiMediaSublabel = document.getElementById("kpiMediaSublabel");
     const kpiMediaSub = document.getElementById("kpiMediaSub");
     if (kpiMediaVal) kpiMediaVal.textContent = isScopeAll ? (currentMonthObj.images || 0) : scopeImages;
-    if (kpiMediaSublabel) kpiMediaSublabel.textContent = isScopeAll ? "Ảnh / Kho Media" : `Ảnh Media tải lên (${scope.label})`;
+    if (kpiMediaSublabel) kpiMediaSublabel.textContent = isScopeAll ? `Ảnh Media (${monthTag})` : `Ảnh Media tải lên (${scope.label})`;
     if (kpiMediaSub) {
         kpiMediaSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.images} tệp | ${yearDetailText}: ${totalImagesYear} ảnh)`
+            ? `(${monthTag}: ${currentMonthObj.images || 0} ảnh | ${yearDetailText}: ${totalImagesYear} ảnh | Tổng: ${allTime.images})`
             : `(${scope.shortLabel}: ${scopeImages} ảnh | ${yearDetailText}: ${totalImagesYear} ảnh | Tổng: ${allTime.images})`;
     }
 
-    // 8. BÁO CÁO: Số to hiển thị số liệu hàng tháng (tháng hiện tại: 0 bc)
+    // 8. BÁO CÁO: Số to hiển thị số liệu hàng tháng
     const kpiReportVal = document.getElementById("kpiReportValue");
     const kpiReportSublabel = document.getElementById("kpiReportSublabel");
     const kpiReportSub = document.getElementById("kpiReportSub");
     if (kpiReportVal) kpiReportVal.textContent = isScopeAll ? (currentMonthObj.reports || 0) : scopeReports;
-    if (kpiReportSublabel) kpiReportSublabel.textContent = isScopeAll ? "Báo cáo/tháng" : `Báo cáo ban hành (${scope.label})`;
+    if (kpiReportSublabel) kpiReportSublabel.textContent = isScopeAll ? `Báo cáo/tháng (${monthTag})` : `Báo cáo ban hành (${scope.label})`;
     if (kpiReportSub) {
         kpiReportSub.textContent = isScopeAll
-            ? `(Tổng kho: ${allTime.reports} báo cáo | ${yearDetailText}: ${totalReportsYear})`
+            ? `(${monthTag}: ${currentMonthObj.reports || 0} bc | ${yearDetailText}: ${totalReportsYear})`
             : `(${scope.shortLabel}: ${scopeReports} bc | ${yearDetailText}: ${totalReportsYear} bc | Tổng: ${allTime.reports})`;
     }
 
@@ -1045,7 +1071,11 @@ function renderMiniCharts() {
         totalImagesYear += (m.images || 0);
     });
 
-    const currentMonthObj = allMonths.find(m => m.month === currentMonth) || {
+    const activeMonthNum = (currentYear === currentRealtimeYear3 || currentYear === 'all') 
+        ? currentRealtimeMonth3 
+        : (currentMonth || (allMonths.length > 0 ? allMonths[allMonths.length - 1].month : 12));
+
+    const currentMonthObj = allMonths.find(m => m.month === activeMonthNum) || {
         publishedPosts: 0, announcements: 0, pendingPosts: 0, pages: 0, staff: 0, categories: 0, images: 0, reports: 0
     };
 
@@ -1056,7 +1086,7 @@ function renderMiniCharts() {
     const foot1 = document.getElementById("miniFooter1");
     if (badge1) {
         badge1.textContent = isAll 
-            ? `Tháng ${currentMonth}: ${currentMonthObj.publishedPosts} bài viết` 
+            ? `Tháng ${activeMonthNum}: ${currentMonthObj.publishedPosts} bài viết` 
             : `${scope.label}: ${scopePosts} bài viết`;
     }
     if (foot1) {
@@ -1070,7 +1100,7 @@ function renderMiniCharts() {
     const foot2 = document.getElementById("miniFooter2");
     if (badge2) {
         badge2.textContent = isAll
-            ? `THÁNG ${currentMonth}: ${currentMonthObj.images} Ảnh`
+            ? `THÁNG ${activeMonthNum}: ${currentMonthObj.images} Ảnh`
             : `${scope.label.toUpperCase()}: ${scopeImages} Ảnh`;
     }
     if (foot2) {
@@ -1084,7 +1114,7 @@ function renderMiniCharts() {
     const foot3 = document.getElementById("miniFooter3");
     if (badge3) {
         badge3.textContent = isAll
-            ? `Tháng ${currentMonth}: ${currentMonthObj.announcements} Thông báo`
+            ? `Tháng ${activeMonthNum}: ${currentMonthObj.announcements} Thông báo`
             : `${scope.label}: ${scopeAnnounce} Thông báo`;
     }
     if (foot3) {
@@ -1098,7 +1128,7 @@ function renderMiniCharts() {
     const foot4 = document.getElementById("miniFooter4");
     if (badge4) {
         badge4.textContent = isAll
-            ? `Tháng ${currentMonth}: ${currentMonthObj.reports} Báo cáo`
+            ? `Tháng ${activeMonthNum}: ${currentMonthObj.reports} Báo cáo`
             : `${scope.label}: ${scopeReports} Báo cáo`;
     }
     if (foot4) {
@@ -1112,7 +1142,7 @@ function renderMiniCharts() {
     const foot5 = document.getElementById("miniFooter5");
     if (badge5) {
         badge5.textContent = isAll
-            ? `Tháng ${currentMonth}: ${currentMonthObj.pages} Trang`
+            ? `Tháng ${activeMonthNum}: ${currentMonthObj.pages} Trang`
             : `${scope.label}: ${scopePages} Trang`;
     }
     if (foot5) {
@@ -1126,7 +1156,7 @@ function renderMiniCharts() {
     const foot6 = document.getElementById("miniFooter6");
     if (badge6) {
         badge6.textContent = isAll
-            ? `Tháng ${currentMonth}: ${currentMonthObj.categories} Danh mục`
+            ? `Tháng ${activeMonthNum}: ${currentMonthObj.categories} Danh mục`
             : `${scope.label}: ${scopeCat} Danh mục`;
     }
     if (foot6) {
@@ -1396,8 +1426,8 @@ function renderTable(months) {
 
         const tr = document.createElement("tr");
 
-        // Đánh dấu tháng 10 hiện tại nếu đang trong năm 2026
-        const isCurrentMonth = (m.month === currentMonth && currentYear === 2026);
+        // Đánh dấu tháng hiện tại nếu đang trong năm hiện tại hoặc tất cả các năm
+        const isCurrentMonth = (m.month === currentRealtimeMonth3 && (currentYear === currentRealtimeYear3 || currentYear === 'all'));
         const isSelectedMonth = (scope.isSingleMonth && scope.months.includes(m.month));
         if (isSelectedMonth) {
             tr.className = isCurrentMonth ? "row-current-month row-selected" : "row-selected";
@@ -1417,7 +1447,7 @@ function renderTable(months) {
 
         // Tên tháng (làm nổi bật và cho phép bấm chọn nhanh để lọc theo tháng)
         const monthDisplayName = isCurrentMonth
-            ? `<strong class="text-emerald">${m.monthName}</strong>`
+            ? `<strong class="text-emerald">${m.monthName}</strong> <span class="badge-current-tag" style="font-size: 11px; background: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; margin-left: 4px; font-weight: 600;">(Hiện tại)</span>`
             : `<strong>${m.monthName}</strong>`;
         const monthColHtml = `<a href="javascript:void(0)" class="month-scope-link" onclick="selectScopeMonth(${m.month})" title="Bấm để lọc xem riêng số liệu ${m.monthName}">${monthDisplayName}</a>`;
         const isYearAll = (currentYear === 'all');
@@ -1917,7 +1947,7 @@ const CMS_METRIC_CONFIG = [
 
 // Trạng thái modal cập nhật
 let modalEditYear = 2026;
-let modalEditMonth = 10;
+let modalEditMonth = currentRealtimeMonth3;
 let modalEditMode = 'delta'; // 'delta' (+/-) hoặc 'direct' (nhập trực tiếp)
 let modalDeltas = {};
 let modalDirectValues = {};
@@ -2186,7 +2216,7 @@ function openUpdateDataModal(targetYear, targetMonth) {
     if (targetMonth && targetMonth >= 1 && targetMonth <= 12) {
         modalEditMonth = parseInt(targetMonth, 10);
     } else {
-        modalEditMonth = currentMonth || 10;
+        modalEditMonth = currentMonth || currentRealtimeMonth3;
     }
 
     // Cập nhật giá trị vào dropdown năm
