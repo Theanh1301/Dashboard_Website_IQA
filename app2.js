@@ -108,7 +108,7 @@ let monthlyStatsData = {
 };
 
 // SỐ LIỆU CUỐI CÙNG CỦA CỘT SỐ TIỀN CÒN LẠI (chuẩn theo Google Sheet)
-let latestRemainingBalance = 17112779;
+let latestRemainingBalance = 16716580;
 
 // Khai báo hàm mở Modal thêm giao dịch mới ngay tại cấp cao nhất
 window.openAddTransactionModal = function() {
@@ -257,8 +257,8 @@ function initApp() {
         try {
             const parsedList = JSON.parse(savedFinanceTx);
             if (Array.isArray(parsedList) && parsedList.length > 0) {
-                // Nếu dữ liệu trong RAW_FINANCE_SHEET_DATA nhiều hơn bản lưu cũ, ưu tiên dùng dữ liệu sheet đầy đủ
-                if (window.RAW_FINANCE_SHEET_DATA && Array.isArray(window.RAW_FINANCE_SHEET_DATA) && window.RAW_FINANCE_SHEET_DATA.length > parsedList.length) {
+                // Nếu dữ liệu trong RAW_FINANCE_SHEET_DATA nhiều hơn hoặc bằng bản lưu cũ, ưu tiên dùng dữ liệu sheet đầy đủ
+                if (window.RAW_FINANCE_SHEET_DATA && Array.isArray(window.RAW_FINANCE_SHEET_DATA) && window.RAW_FINANCE_SHEET_DATA.length >= parsedList.length) {
                     applyNewFinanceRows(window.RAW_FINANCE_SHEET_DATA, "Google Sheet (Đã đồng bộ)");
                     restoredFromStorage = true;
                 } else {
@@ -496,6 +496,8 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
             let colIncome = cols.find(c => c.label.includes('tăng') || c.label.includes('thu'))?.index ?? 1;
             let colBalance = cols.find(c => c.label.includes('còn lại') || c.label.includes('số dư'))?.index ?? 2;
             let colTime = cols.find(c => c.label.includes('thời gian') || c.label.includes('ngày') || c.label.includes('date') || c.label.includes('time'))?.index ?? 3;
+            let colDesc = cols.find(c => c.label.includes('ghi chú') || c.label.includes('nội dung') || c.label.includes('note') || c.label.includes('desc'))?.index;
+            if (colDesc === undefined && cols.length >= 5) colDesc = 4;
 
             const parsedResults = [];
             table.rows.forEach((r, idx) => {
@@ -514,6 +516,7 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
                 const incVal = cleanMoneyToNumber(getVal(colIncome));
                 const balVal = cleanMoneyToNumber(getVal(colBalance));
                 const timeVal = String(getVal(colTime) || '').trim();
+                const descVal = colDesc !== undefined ? String(getVal(colDesc) || '').trim() : '';
 
                 // Bỏ qua dòng tiêu đề nếu lẫn vào
                 if (idx === 0 && (timeVal.toLowerCase().includes('thời gian') || String(expVal).toLowerCase().includes('chi'))) {
@@ -527,7 +530,7 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
                         income: incVal,
                         balance: balVal,
                         time: timeVal || 'Thời gian 15/10/2026',
-                        description: `Khoản ${expVal > 0 ? 'chi' : 'thu'} dòng ${idx + 1}`
+                        description: descVal || (expVal > 0 ? `Khoản chi dòng ${idx + 1}` : `Khoản tăng dòng ${idx + 1}`)
                     });
                 }
             });
@@ -573,18 +576,21 @@ function fetchViaCsv(sheetId, gid) {
             if (colBalance < 0) colBalance = 2;
             let colTime = header.findIndex(c => c.includes('thời gian') || c.includes('ngày'));
             if (colTime < 0) colTime = 3;
+            let colDesc = header.findIndex(c => c.includes('ghi chú') || c.includes('nội dung') || c.includes('note') || c.includes('desc'));
+            if (colDesc < 0 && header.length >= 5) colDesc = 4;
 
             const results = [];
             for (let i = 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (!r || r.length === 0) continue;
+                const descVal = (colDesc >= 0 && colDesc < r.length) ? String(r[colDesc] || '').trim() : '';
                 results.push({
                     id: `GD-0${i}`,
                     expense: cleanMoneyToNumber(r[colExpense]),
                     income: cleanMoneyToNumber(r[colIncome]),
                     balance: cleanMoneyToNumber(r[colBalance]),
                     time: String(r[colTime] || '').trim() || 'Thời gian 15/10/2026',
-                    description: `Khoản chi phát sinh dòng ${i}`
+                    description: descVal || `Khoản chi phát sinh dòng ${i}`
                 });
             }
             return results;
@@ -847,19 +853,95 @@ function renderTopStatCards() {
 }
 
 /**
- * 2. BIỂU ĐỒ CHÍNH 12 THÁNG
+ * 2. BIỂU ĐỒ CHÍNH 12 THÁNG HOẶC CHI TIẾT THEO THÁNG ĐƯỢC CHỌN
  */
 function renderMainFinanceChart() {
     const canvas = document.getElementById('mainMonthlyChart');
     if (!canvas || typeof Chart === 'undefined') return;
 
     const yr = currentYear === 'all' ? 2026 : currentYear;
-    const yearList = monthlyStatsData[yr] || monthlyStatsData[2026];
+    const yearList = monthlyStatsData[yr] || monthlyStatsData[2026] || [];
+    const now = new Date();
+    const curM = now.getMonth() + 1;
 
-    const labels = yearList.map(item => item.monthName);
-    const incomeData = yearList.map(item => item.income);
-    const expenseData = yearList.map(item => item.expense);
-    const balanceData = yearList.map(item => item.balance);
+    const monthTitleEl = document.querySelector('#main-chart-section .chart-title');
+    const monthSubtitleEl = document.querySelector('#main-chart-section .chart-subtitle');
+
+    let labels = [];
+    let incomeData = [];
+    let expenseData = [];
+    let balanceData = [];
+
+    const isAll = (selectedMonth === 'all');
+
+    if (isAll) {
+        if (monthTitleEl) {
+            monthTitleEl.textContent = currentYear === 'all'
+                ? 'Sơ Đồ Dòng Tiền: Tiền Tăng, Tiền Đã Chi & Số Dư Còn Lại Qua 12 Tháng (Toàn Bộ Các Năm)'
+                : `Sơ Đồ Dòng Tiền: Tiền Tăng, Tiền Đã Chi & Số Dư Còn Lại Qua 12 Tháng (Năm ${currentYear})`;
+        }
+        if (monthSubtitleEl) {
+            monthSubtitleEl.textContent = 'Biểu diễn chi tiết Tổng tiền tăng (Thu vào), Tổng tiền đã chi (Xuất quỹ) và Số tiền còn lại từng tháng';
+        }
+
+        labels = yearList.map(item => item.monthName);
+        incomeData = yearList.map(item => item.income);
+        expenseData = yearList.map(item => item.expense);
+        balanceData = yearList.map(item => item.balance);
+    } else {
+        const monthNum = selectedMonth;
+        const yearStr = currentYear === 'all' ? 'Năm 2026' : `Năm ${currentYear}`;
+        if (monthTitleEl) {
+            monthTitleEl.textContent = `Sơ Đồ Dòng Tiền Chi Tiết Tháng ${monthNum} (${yearStr})`;
+        }
+        if (monthSubtitleEl) {
+            monthSubtitleEl.textContent = `Biểu diễn chi tiết các giao dịch thu, chi và diễn biến số dư qua từng ngày trong Tháng ${monthNum}`;
+        }
+
+        // Lọc các giao dịch của tháng được chọn
+        const monthTx = transactionsData.filter(t => (currentYear === 'all' || t.year === yr) && t.month === monthNum);
+
+        if (monthTx.length > 0) {
+            // Nhóm theo ngày giao dịch
+            const dayMap = {};
+            monthTx.forEach(t => {
+                let dLabel = '';
+                if (t.date) {
+                    const parts = t.date.split('/');
+                    dLabel = parts.length >= 2 ? `${parts[0]}/${parts[1]}` : t.date;
+                } else {
+                    const mMatch = String(t.time).match(/ngày\s+(\d{1,2}\/\d{1,2})/i);
+                    dLabel = mMatch ? mMatch[1] : `T${monthNum}`;
+                }
+
+                if (!dayMap[dLabel]) {
+                    dayMap[dLabel] = {
+                        label: `Ngày ${dLabel}`,
+                        income: 0,
+                        expense: 0,
+                        balance: t.balance,
+                        count: 0
+                    };
+                }
+                dayMap[dLabel].income += (cleanMoneyToNumber(t.income) || 0);
+                dayMap[dLabel].expense += (cleanMoneyToNumber(t.expense) || 0);
+                dayMap[dLabel].balance = t.balance;
+                dayMap[dLabel].count++;
+            });
+
+            const keys = Object.keys(dayMap);
+            labels = keys.map(k => dayMap[k].label);
+            incomeData = keys.map(k => dayMap[k].income);
+            expenseData = keys.map(k => dayMap[k].expense);
+            balanceData = keys.map(k => dayMap[k].balance);
+        } else {
+            labels = [`Tháng ${monthNum} (Chưa phát sinh GD)`];
+            incomeData = [0];
+            expenseData = [0];
+            const mStat = yearList[monthNum - 1];
+            balanceData = [mStat ? mStat.balance : latestRemainingBalance];
+        }
+    }
 
     if (mainFinanceChart) {
         mainFinanceChart.destroy();
@@ -873,7 +955,7 @@ function renderMainFinanceChart() {
             labels: labels,
             datasets: [
                 {
-                    label: 'Tổng Tiền Tăng (Thu)',
+                    label: isAll ? 'Tổng Tiền Tăng (Thu)' : 'Tiền Tăng (Thu)',
                     data: incomeData,
                     backgroundColor: 'rgba(16, 185, 129, 0.85)',
                     borderColor: '#10b981',
@@ -882,7 +964,7 @@ function renderMainFinanceChart() {
                     fill: false
                 },
                 {
-                    label: 'Tổng Tiền Đã Chi',
+                    label: isAll ? 'Tổng Tiền Đã Chi' : 'Tiền Đã Chi',
                     data: expenseData,
                     backgroundColor: 'rgba(244, 63, 94, 0.85)',
                     borderColor: '#f43f5e',
@@ -960,22 +1042,34 @@ function renderMiniCharts() {
     const activeMonthData = yearList[displayMonth - 1] || { income: 0, expense: 0, balance: latestRemainingBalance };
 
     // Lọc danh sách giao dịch hiển thị trên mini chart 1
-    let txToShow = transactionsData.filter(t => (currentYear === 'all' || t.year === yr));
-    if (selectedMonth !== 'all') {
-        const monthTx = txToShow.filter(t => t.month === selectedMonth);
-        if (monthTx.length > 0) txToShow = monthTx;
+    let txToShow = [];
+    if (selectedMonth === 'all') {
+        const curMonthTx = transactionsData.filter(t => (currentYear === 'all' || t.year === yr) && t.month === curM);
+        txToShow = curMonthTx.length > 0 ? curMonthTx : transactionsData.filter(t => (currentYear === 'all' || t.year === yr));
+    } else {
+        txToShow = transactionsData.filter(t => (currentYear === 'all' || t.year === yr) && t.month === selectedMonth);
     }
 
-    // Mini Chart 1: So sánh Chi theo từng ngày
+    // Mini Chart 1: So sánh Chi theo từng ngày trong tháng
     const canvas1 = document.getElementById('chartMiniCompare');
     if (canvas1 && typeof Chart !== 'undefined') {
         if (miniCompareChart) miniCompareChart.destroy();
         const ctx1 = canvas1.getContext('2d');
 
-        const txLabels = txToShow.map(t => (t.time || t.date || '').replace(/Thời gian \d+:\d+ ngày /i, 'Ngày '));
-        const txExpenses = txToShow.map(t => t.expense);
+        let txLabels = [];
+        let txExpenses = [];
+        let txIncomes = [];
 
-        const txIncomes = txToShow.map(t => t.income);
+        if (txToShow.length > 0) {
+            txLabels = txToShow.map(t => (t.date ? t.date : (t.time || '').replace(/Thời gian \d+:\d+ ngày /i, 'Ngày ')));
+            txExpenses = txToShow.map(t => t.expense);
+            txIncomes = txToShow.map(t => t.income);
+        } else {
+            txLabels = [`Tháng ${displayMonth}: Chưa có GD`];
+            txExpenses = [0];
+            txIncomes = [0];
+        }
+
         const hasIncome = txIncomes.some(inc => inc > 0);
         const datasets = [
             {
@@ -1025,10 +1119,27 @@ function renderMiniCharts() {
         if (miniStructureChart) miniStructureChart.destroy();
         const ctx2 = canvas2.getContext('2d');
 
-        const hasIncome = activeMonthData.income > 0;
-        const structLabels = hasIncome ? ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'] : ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
-        const structData = hasIncome ? [activeMonthData.expense, activeMonthData.income, latestRemainingBalance] : [activeMonthData.expense, latestRemainingBalance];
-        const structColors = hasIncome ? ['#f43f5e', '#10b981', '#06b6d4'] : ['#f43f5e', '#06b6d4'];
+        const curBal = activeMonthData.balance || latestRemainingBalance;
+        const curExp = activeMonthData.expense || 0;
+        const curInc = activeMonthData.income || 0;
+
+        let structLabels = [];
+        let structData = [];
+        let structColors = [];
+
+        if (curInc > 0) {
+            structLabels = ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'];
+            structData = [curExp, curInc, curBal];
+            structColors = ['#f43f5e', '#10b981', '#06b6d4'];
+        } else if (curExp > 0) {
+            structLabels = ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
+            structData = [curExp, curBal];
+            structColors = ['#f43f5e', '#06b6d4'];
+        } else {
+            structLabels = ['Số Tiền Còn Lại'];
+            structData = [curBal];
+            structColors = ['#06b6d4'];
+        }
 
         miniStructureChart = new Chart(ctx2, {
             type: 'doughnut',
@@ -1061,11 +1172,18 @@ function renderMiniCharts() {
     // Badge tags
     const badgeCompareStatus = document.getElementById('badgeCompareStatus');
     if (badgeCompareStatus) {
-        badgeCompareStatus.textContent = `Tổng chi: ${formatCurrency(activeMonthData.expense)}`;
+        badgeCompareStatus.textContent = `Chi T${displayMonth}: ${formatCurrency(activeMonthData.expense)}`;
     }
     const badgeDisbursementRate = document.getElementById('badgeDisbursementRate');
     if (badgeDisbursementRate) {
-        badgeDisbursementRate.textContent = `Còn lại: ${formatCurrency(latestRemainingBalance)}`;
+        if (activeMonthData.income > 0) {
+            const pct = ((activeMonthData.expense / activeMonthData.income) * 100).toFixed(1);
+            badgeDisbursementRate.textContent = `Giải ngân: ${pct}%`;
+        } else if (activeMonthData.expense > 0) {
+            badgeDisbursementRate.textContent = `Chi: ${formatCurrency(activeMonthData.expense)}`;
+        } else {
+            badgeDisbursementRate.textContent = `Chưa chi tiêu (0%)`;
+        }
     }
     const miniFooterIncome = document.getElementById('miniFooterIncome');
     if (miniFooterIncome) {
@@ -1073,7 +1191,7 @@ function renderMiniCharts() {
     }
     const miniFooterDisbursement = document.getElementById('miniFooterDisbursement');
     if (miniFooterDisbursement) {
-        miniFooterDisbursement.textContent = `Tồn quỹ: ${formatCurrency(latestRemainingBalance)}`;
+        miniFooterDisbursement.textContent = `Tồn quỹ: ${formatCurrency(activeMonthData.balance || latestRemainingBalance)}`;
     }
 }
 
@@ -1100,7 +1218,15 @@ function renderMonthlyReportTable() {
 
         const net = row.income - row.expense;
         const isCurrentMonth = (row.month === curM && (currentYear === curY || currentYear === 'all'));
-        const rowClass = isCurrentMonth ? 'row-current-month' : '';
+        const isSelected = (selectedMonth !== 'all' && row.month === selectedMonth);
+        let rowClass = '';
+        if (isSelected && isCurrentMonth) {
+            rowClass = 'row-current-month row-selected';
+        } else if (isSelected) {
+            rowClass = 'row-selected';
+        } else if (isCurrentMonth) {
+            rowClass = 'row-current-month';
+        }
 
         const rateStr = row.income > 0 ? ((row.expense / row.income) * 100).toFixed(1) + '%' : (row.expense > 0 ? 'Chi từ quỹ' : '-');
 
@@ -1125,8 +1251,9 @@ function renderMonthlyReportTable() {
         html += `
             <tr class="${rowClass}">
                 <td>
-                    <strong class="${isCurrentMonth ? 'text-emerald' : ''}">${row.monthName}</strong>
+                    <strong class="${isCurrentMonth ? 'text-emerald' : (isSelected ? 'text-blue' : '')}">${row.monthName}</strong>
                     ${isCurrentMonth ? '<span class="badge-current-tag" style="font-size: 11px; background: #ecfdf5; color: #059669; padding: 2px 6px; border-radius: 4px; margin-left: 4px; font-weight: 600;">(Hiện tại)</span>' : ''}
+                    ${isSelected && !isCurrentMonth ? '<span class="badge-current-tag" style="font-size: 11px; background: #eff6ff; color: #2563eb; padding: 2px 6px; border-radius: 4px; margin-left: 4px; font-weight: 600;">(Đang chọn)</span>' : ''}
                 </td>
                 <td><span class="pill-badge ${row.income > 0 ? 'pill-green' : 'pill-gray'}">${formatCurrency(row.income)}</span></td>
                 <td><span class="pill-badge ${row.expense > 0 ? 'pill-rose' : 'pill-gray'}">${formatCurrency(row.expense)}</span></td>
@@ -1498,11 +1625,13 @@ function updateModalPreview() {
     const amountInput = document.getElementById('inputAmount');
     const amountVal = cleanMoneyToNumber(amountInput ? amountInput.value : '');
     const dateVal = document.getElementById('inputDate')?.value;
+    const descInput = document.getElementById('inputDescription');
 
     const previewColExpense = document.getElementById('previewColExpense');
     const previewColIncome = document.getElementById('previewColIncome');
     const previewColBalance = document.getElementById('previewColBalance');
     const previewColTime = document.getElementById('previewColTime');
+    const previewColDesc = document.getElementById('previewColDesc');
     const formulaRuleDesc = document.getElementById('formulaRuleDesc');
 
     const isExpense = (type === 'expense');
@@ -1510,6 +1639,7 @@ function updateModalPreview() {
     const inc = !isExpense ? amountVal : 0;
     const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
     const timeFormatted = getTransactionFormattedTime(dateVal);
+    const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(exp)}` : `Thu tăng quỹ ${formatCurrency(inc)}`);
 
     if (previewColExpense) {
         previewColExpense.textContent = exp > 0 ? `- ${formatCurrency(exp)}` : '0 ₫';
@@ -1526,11 +1656,14 @@ function updateModalPreview() {
     if (previewColTime) {
         previewColTime.textContent = timeFormatted;
     }
+    if (previewColDesc) {
+        previewColDesc.textContent = descVal;
+    }
     if (formulaRuleDesc) {
         if (!isExpense) {
-            formulaRuleDesc.innerHTML = `Khoản <strong>TĂNG</strong>: Cột tăng = <span style="color:#059669; font-weight:700;">${formatCurrency(inc)}</span> | Cột chi = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} + ${formatCurrency(inc)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong>`;
+            formulaRuleDesc.innerHTML = `Khoản <strong>TĂNG</strong>: Cột tăng = <span style="color:#059669; font-weight:700;">${formatCurrency(inc)}</span> | Cột chi = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} + ${formatCurrency(inc)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
         } else {
-            formulaRuleDesc.innerHTML = `Khoản <strong>CHI</strong>: Cột chi = <span style="color:#e11d48; font-weight:700;">${formatCurrency(exp)}</span> | Cột tăng = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} - ${formatCurrency(exp)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong>`;
+            formulaRuleDesc.innerHTML = `Khoản <strong>CHI</strong>: Cột chi = <span style="color:#e11d48; font-weight:700;">${formatCurrency(exp)}</span> | Cột tăng = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} - ${formatCurrency(exp)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
         }
     }
 }
@@ -1554,13 +1687,14 @@ function handleAmountInput(e) {
 let lastAddedTransaction = null;
 
 /**
- * Sao chép dòng dữ liệu chuẩn 4 cột Google Sheet vào bộ nhớ tạm
+ * Sao chép dòng dữ liệu chuẩn 5 cột Google Sheet vào bộ nhớ tạm (gồm Cột Ghi Chú)
  */
 function handleCopyRowToClipboard() {
     const typeSelect = document.getElementById('inputType');
     const type = typeSelect ? typeSelect.value : 'income';
     const amountVal = cleanMoneyToNumber(document.getElementById('inputAmount')?.value);
     const dateVal = document.getElementById('inputDate')?.value;
+    const descInput = document.getElementById('inputDescription');
 
     if (!amountVal || amountVal <= 0) {
         showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
@@ -1572,30 +1706,32 @@ function handleCopyRowToClipboard() {
     const inc = !isExpense ? amountVal : 0;
     const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
     const timeFormatted = getTransactionFormattedTime(dateVal);
+    const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(exp)}` : `Thu tăng quỹ ${formatCurrency(inc)}`);
 
-    // Chuẩn 4 cột Google Sheet (phân tách tab để dán thẳng vào Sheet):
-    // Cột 1: Số tiền chi | Cột 2: Số tiền tăng | Cột 3: Số tiền còn lại | Cột 4: Thời gian
-    const tsvLine = `${exp === 0 ? '' : exp}\t${inc === 0 ? '' : inc}\t${newBal}\t${timeFormatted}`;
+    // Chuẩn 5 cột Google Sheet (phân tách tab để dán thẳng vào Sheet):
+    // Cột 1: Số tiền chi | Cột 2: Số tiền tăng | Cột 3: Số tiền còn lại | Cột 4: Thời gian | Cột 5: Ghi chú
+    const tsvLine = `${exp === 0 ? '' : exp}\t${inc === 0 ? '' : inc}\t${newBal}\t${timeFormatted}\t${descVal}`;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(tsvLine).then(() => {
-            showToast("Đã sao chép dòng 4 cột! Bạn có thể nhấn Ctrl + V thẳng vào ô đầu tiên trong Google Sheet.", "success");
+            showToast("Đã sao chép 5 cột (kèm Cột Ghi chú)! Bạn có thể nhấn Ctrl + V thẳng vào ô đầu tiên trong Google Sheet.", "success");
         }).catch(() => {
-            prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+            prompt("Sao chép dữ liệu 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
         });
     } else {
-        prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        prompt("Sao chép dữ liệu 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
     }
 }
 
 /**
- * Sao chép dòng 4 cột và mở ngay liên kết Google Sheet để dán (Ctrl+V)
+ * Sao chép dòng 5 cột và mở ngay liên kết Google Sheet để dán (Ctrl+V)
  */
 function handleCopyAndOpenSheet() {
     const typeSelect = document.getElementById('inputType');
     const type = typeSelect ? typeSelect.value : 'income';
     const amountVal = cleanMoneyToNumber(document.getElementById('inputAmount')?.value);
     const dateVal = document.getElementById('inputDate')?.value;
+    const descInput = document.getElementById('inputDescription');
 
     if (!amountVal || amountVal <= 0) {
         showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
@@ -1607,21 +1743,23 @@ function handleCopyAndOpenSheet() {
     const inc = !isExpense ? amountVal : '';
     const newBal = isExpense ? (latestRemainingBalance - amountVal) : (latestRemainingBalance + amountVal);
     const timeFormatted = getTransactionFormattedTime(dateVal);
+    const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(amountVal)}` : `Thu tăng quỹ ${formatCurrency(amountVal)}`);
 
-    const tsvLine = `${exp}\t${inc}\t${newBal}\t${timeFormatted}`;
+    // Chuẩn 5 cột Google Sheet
+    const tsvLine = `${exp}\t${inc}\t${newBal}\t${timeFormatted}\t${descVal}`;
 
     const finishCopy = () => {
-        showToast("Đã sao chép 4 cột! Đang mở Google Sheet để bạn dán (Ctrl+V)...", "success");
+        showToast("Đã sao chép 5 cột (kèm Cột Ghi chú)! Đang mở Google Sheet để bạn dán (Ctrl+V)...", "success");
         window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
     };
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(tsvLine).then(finishCopy).catch(() => {
-            prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+            prompt("Sao chép dữ liệu 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
             window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
         });
     } else {
-        prompt("Sao chép dữ liệu 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        prompt("Sao chép dữ liệu 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
         window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
     }
 }
@@ -1638,23 +1776,25 @@ function handlePostAddCopyAndOpen() {
     const inc = lastAddedTransaction.income > 0 ? lastAddedTransaction.income : '';
     const bal = lastAddedTransaction.balance;
     const time = lastAddedTransaction.time;
+    const desc = lastAddedTransaction.description || '';
 
-    const tsvLine = `${exp}\t${inc}\t${bal}\t${time}`;
+    // Chuẩn 5 cột Google Sheet (gồm Cột 5: Ghi chú)
+    const tsvLine = `${exp}\t${inc}\t${bal}\t${time}\t${desc}`;
 
     const finishCopy = () => {
-        showToast("Đã sao chép 4 cột! Đang mở Google Sheet...", "success");
+        showToast("Đã sao chép 5 cột (kèm Cột Ghi chú)! Đang mở Google Sheet...", "success");
         window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
         closePostAddSyncModal();
     };
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(tsvLine).then(finishCopy).catch(() => {
-            prompt("Sao chép 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+            prompt("Sao chép 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
             window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
             closePostAddSyncModal();
         });
     } else {
-        prompt("Sao chép 4 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
+        prompt("Sao chép 5 cột Google Sheet bên dưới (Ctrl+C):", tsvLine);
         window.open(DEFAULT_GOOGLE_SHEET_URL, '_blank');
         closePostAddSyncModal();
     }
@@ -1755,6 +1895,8 @@ async function sendRowToGoogleSheetWebhook(webhookUrl, rowData) {
                 balance: rowData.balance,
                 time: rowData.time,
                 description: rowData.description,
+                ghiChu: rowData.description,
+                noiDung: rowData.description,
                 gid: DEFAULT_SHEET_GID
             })
         }).then(() => {
@@ -2113,7 +2255,8 @@ function handleCopyAllPendingAndOpenSheet() {
     const lines = userRows.map(u => {
         const exp = u.expense > 0 ? u.expense : '';
         const inc = u.income > 0 ? u.income : '';
-        return `${exp}\t${inc}\t${u.balance}\t${u.time}`;
+        const desc = u.description || '';
+        return `${exp}\t${inc}\t${u.balance}\t${u.time}\t${desc}`;
     }).join('\r\n');
 
     const finishCopy = () => {
@@ -2171,7 +2314,9 @@ async function handleSyncPendingViaWebhook() {
                     income: u.income,
                     balance: u.balance,
                     time: u.time,
-                    description: u.description
+                    description: u.description,
+                    ghiChu: u.description,
+                    noiDung: u.description
                 })),
                 gid: DEFAULT_SHEET_GID
             })
@@ -2256,18 +2401,21 @@ function parseAndApplyRawCsv(csvText, sourceName) {
     if (colBalance < 0) colBalance = 2;
     let colTime = header.findIndex(c => c.includes('thời gian') || c.includes('ngày'));
     if (colTime < 0) colTime = 3;
+    let colDesc = header.findIndex(c => c.includes('ghi chú') || c.includes('nội dung') || c.includes('note') || c.includes('desc'));
+    if (colDesc < 0 && header.length >= 5) colDesc = 4;
 
     const parsedList = [];
     for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
         if (!r || r.length === 0) continue;
+        const descVal = (colDesc >= 0 && colDesc < r.length) ? String(r[colDesc] || '').trim() : '';
         parsedList.push({
             id: `GD-0${i}`,
             expense: cleanMoneyToNumber(r[colExpense]),
             income: cleanMoneyToNumber(r[colIncome]),
             balance: cleanMoneyToNumber(r[colBalance]),
             time: String(r[colTime] || '').trim() || 'Thời gian 15/10/2026',
-            description: `Dòng ${i}`
+            description: descVal || `Dòng ${i}`
         });
     }
 
@@ -2402,6 +2550,9 @@ function initEventListeners() {
 
     const inputDateEl = document.getElementById('inputDate');
     if (inputDateEl) inputDateEl.addEventListener('change', updateModalPreview);
+
+    const inputDescEl = document.getElementById('inputDescription');
+    if (inputDescEl) inputDescEl.addEventListener('input', updateModalPreview);
 
     // Nút sao chép dòng 4 cột chuẩn Google Sheet
     const btnCopyRowClipboard = document.getElementById('btnCopyRowClipboard');

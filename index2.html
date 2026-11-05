@@ -520,7 +520,7 @@
                                     <th style="width: 180px; text-align: right;">Số Tiền Chi</th>
                                     <th style="width: 180px; text-align: right;">Số Tiền Tăng</th>
                                     <th style="width: 200px; text-align: right;">Số Tiền Còn Lại</th>
-                                    <th style="width: 170px;">Trạng Thái / Diễn Giải</th>
+                                    <th style="width: 170px;">Ghi Chú / Nội Dung</th>
                                 </tr>
                             </thead>
                             <tbody id="transactionsDataBody">
@@ -629,10 +629,10 @@
                         <input type="date" id="inputDate" class="form-control" style="font-weight: 500;">
                     </div>
 
-                    <!-- LIVE PREVIEW HÀNG MỚI THEO QUY TẮC CHUẨN 4 CỘT GOOGLE SHEET -->
+                    <!-- LIVE PREVIEW HÀNG MỚI THEO QUY TẮC CHUẨN 5 CỘT GOOGLE SHEET -->
                     <div class="preview-sheet-card">
                         <div class="preview-sheet-header">
-                            <span><i class="fa-solid fa-table-cells text-emerald" style="margin-right: 6px;"></i>Xem Trước Dữ Liệu 4 Cột Ghi Vào Google Sheet</span>
+                            <span><i class="fa-solid fa-table-cells text-emerald" style="margin-right: 6px;"></i>Xem Trước Dữ Liệu 5 Cột Ghi Vào Google Sheet</span>
                             <span class="badge-sheet-tag">Cập nhật tức thì</span>
                         </div>
                         <div class="preview-sheet-grid">
@@ -646,16 +646,20 @@
                             </div>
                             <div class="preview-cell cell-balance">
                                 <span class="preview-cell-label">3. Số Tiền Còn Lại</span>
-                                <span class="preview-cell-value text-blue" id="previewColBalance">43.311.351 ₫</span>
+                                <span class="preview-cell-value text-blue" id="previewColBalance">16.716.580 ₫</span>
                             </div>
                             <div class="preview-cell cell-time">
                                 <span class="preview-cell-label">4. Cột Thời Gian</span>
                                 <span class="preview-cell-value text-slate" id="previewColTime">Thời gian --:-- ngày --/--/----</span>
                             </div>
+                            <div class="preview-cell cell-desc" style="grid-column: span 2; background: #f8fafc;">
+                                <span class="preview-cell-label">5. Cột Ghi Chú (Nội dung chi hoặc tăng)</span>
+                                <span class="preview-cell-value text-slate" id="previewColDesc" style="font-size: 12px; font-weight: 600; color: #1e293b;">--</span>
+                            </div>
                         </div>
                         <div class="preview-rule-badge" id="previewFormulaText">
                             <i class="fa-solid fa-calculator"></i>
-                            <div><strong>Quy tắc tính:</strong> <span id="formulaRuleDesc">Nếu là tăng: Cột tăng = Số tiền, Cột chi = 0, Cột còn lại = Số tiền còn lại + Số tiền tăng.</span></div>
+                            <div><strong>Quy tắc tính:</strong> <span id="formulaRuleDesc">Nếu là tăng: Cột tăng = Số tiền, Cột chi = 0, Cột còn lại = Số tiền còn lại + Số tiền tăng, Cột ghi chú = Nội dung giao dịch.</span></div>
                         </div>
                     </div>
 
@@ -692,8 +696,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" id="btnCopyRowClipboard" onclick="handleCopyAndOpenSheet()" title="Sao chép 4 giá trị cột và mở Google Sheet để dán (Ctrl+V)">
-                    <i class="fa-regular fa-copy"></i> Sao Chép &amp; Mở Google Sheet
+                <button type="button" class="btn-cancel" id="btnCopyRowClipboard" onclick="handleCopyAndOpenSheet()" title="Sao chép 5 cột (bao gồm Cột Ghi chú) và mở Google Sheet để dán (Ctrl+V)">
+                    <i class="fa-regular fa-copy"></i> Sao Chép 5 Cột &amp; Mở Google Sheet
                 </button>
                 <button type="button" class="btn-cancel" id="cancelAddBtn" onclick="closeAddTransactionModal()">Hủy Bỏ</button>
                 <button type="button" class="btn-primary" id="saveTransactionBtn" onclick="handleSaveNewTransaction()" style="padding: 9px 18px; font-size: 13px;">
@@ -752,10 +756,10 @@
                             <span class="badge-sheet-tag" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0;">Tiện lợi ngay</span>
                         </div>
                         <p style="color: #64748b; font-size: 11.5px; margin: 0 0 10px 0;">
-                            Hệ thống đã chuẩn bị sẵn 4 cột dữ liệu. Bấm nút dưới để sao chép và mở Google Sheet, sau đó chọn ô đầu tiên của dòng trống cuối cùng rồi ấn <strong>Ctrl + V</strong>.
+                            Hệ thống đã chuẩn bị sẵn 5 cột dữ liệu (Chi, Tăng, Còn lại, Thời gian, Ghi chú). Bấm nút dưới để sao chép và mở Google Sheet, sau đó chọn ô đầu tiên (Cột A) của dòng trống cuối cùng rồi ấn <strong>Ctrl + V</strong>.
                         </p>
                         <button type="button" class="btn-primary" id="btnPostAddCopyAndOpen" onclick="handlePostAddCopyAndOpen()" style="width: 100%; justify-content: center; padding: 9px; font-size: 13px;">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Sao Chép 4 Cột &amp; Mở Google Sheet Để Dán (Ctrl+V)
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Sao Chép 5 Cột (Kèm Ghi Chú) &amp; Mở Google Sheet Để Dán (Ctrl+V)
                         </button>
                     </div>
 
@@ -888,13 +892,15 @@ function doPost(e) {
       var tang = item.income !== undefined ? item.income : (item.tang || 0);
       var conLai = item.balance !== undefined ? item.balance : item.conLai;
       var thoiGian = item.time || item.thoiGian || "";
+      var ghiChu = item.description || item.ghiChu || item.noiDung || "";
 
-      // Ghi đúng chuẩn 4 cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian
+      // Ghi đúng chuẩn 5 cột: Số tiền chi | Số tiền tăng | Số tiền còn lại | Thời gian | Ghi chú
       sheet.appendRow([
         (chi === 0 || chi === "" || chi === null) ? "" : Number(chi),
         (tang === 0 || tang === "" || tang === null) ? "" : Number(tang),
         (conLai === "" || conLai === null || conLai === undefined) ? "" : Number(conLai),
-        String(thoiGian)
+        String(thoiGian),
+        String(ghiChu)
       ]);
       rowsAdded++;
     }
@@ -1014,8 +1020,8 @@ function doGet(e) {
     <!-- Toast Notification -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="sheet2_data.js?v=2"></script>
-    <script src="app2.js?v=2"></script>
+    <script src="sheet2_data.js?v=20261105_1130"></script>
+    <script src="app2.js?v=20261105_1130"></script>
     <script>
         // Đảm bảo tất cả nút Thêm giao dịch luôn luôn hoạt động 100% trong mọi trường hợp
         (function() {

@@ -41,7 +41,7 @@ const INITIAL_YEARLY_DATA = {
         { month: 7, monthName: "Tháng 7", images: 9, publishedPosts: 3, pendingPosts: 0, reports: 0, announcements: 1, categories: 2, staff: 1, pages: 0 },
         { month: 8, monthName: "Tháng 8", images: 30, publishedPosts: 7, pendingPosts: 0, reports: 1, announcements: 2, categories: 1, staff: 0, pages: 1 },
         { month: 9, monthName: "Tháng 9", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 2, pages: 0 },
-        { month: 10, monthName: "Tháng 10", images: 10, publishedPosts: 2, pendingPosts: 0, reports: 0, announcements: 0, categories: 5, staff: 0, pages: 5 },
+        { month: 10, monthName: "Tháng 10", images: 12, publishedPosts: 2, pendingPosts: 0, reports: 0, announcements: 0, categories: 5, staff: 0, pages: 5 },
         { month: 11, monthName: "Tháng 11", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 },
         { month: 12, monthName: "Tháng 12", images: 0, publishedPosts: 0, pendingPosts: 0, reports: 0, announcements: 0, categories: 0, staff: 0, pages: 0 }
     ],

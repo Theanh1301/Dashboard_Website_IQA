@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 2. Phục hồi dữ liệu đệm từ LocalStorage để hiển thị ngay tức thì (0ms)
-    const CACHE_VERSION = 'v4.1_staff_14';
+    const CACHE_VERSION = 'v6.0_nov2026_realtime';
     const cachedVersion = localStorage.getItem('ql_sheet3_cache_ver');
     const cachedData = localStorage.getItem('ql_sheet3_cached_data');
     if (cachedVersion === CACHE_VERSION && cachedData) {
@@ -396,7 +396,7 @@ async function syncDataFromGoogleSheet(isUserTriggered = false) {
             // Lưu dữ liệu vào LocalStorage để lần mở tiếp theo tức thời
             try {
                 localStorage.setItem('ql_sheet3_cached_data', JSON.stringify(yearlyData));
-                localStorage.setItem('ql_sheet3_cache_ver', 'v3.6_tongkho');
+                localStorage.setItem('ql_sheet3_cache_ver', 'v6.0_nov2026_realtime');
                 const now = new Date();
                 const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
                 localStorage.setItem('ql_sheet3_last_sync_time', timeStr);
@@ -767,14 +767,15 @@ function renderKpiCards(filteredMonths) {
     };
 
     const yearDetailText = isYearAll ? "Toàn bộ các năm" : `Năm ${currentYear}`;
-    const monthTag = `Tháng ${activeMonthNum}`;
+    const isCurrentRealtime = (currentYear === currentRealtimeYear3 || currentYear === 'all') && activeMonthNum === currentRealtimeMonth3;
+    const monthTag = isCurrentRealtime ? `Tháng ${activeMonthNum} (Hiện tại)` : `Tháng ${activeMonthNum}`;
 
     // 1. ĐÃ XUẤT BẢN: Số to hiển thị số liệu hàng tháng
     const kpiPostsVal = document.getElementById("kpiPostsValue");
     const kpiPostsSublabel = document.getElementById("kpiPostsSublabel");
     const kpiPostsSub = document.getElementById("kpiPostsSub");
     if (kpiPostsVal) kpiPostsVal.textContent = isScopeAll ? (currentMonthObj.publishedPosts || 0) : scopePosts;
-    if (kpiPostsSublabel) kpiPostsSublabel.textContent = isScopeAll ? `Bài viết đã đăng (${monthTag})` : `Bài viết đã đăng (${scope.label})`;
+    if (kpiPostsSublabel) kpiPostsSublabel.textContent = isScopeAll ? `Bài viết đã đăng / ${monthTag}` : `Bài viết đã đăng (${scope.label})`;
     if (kpiPostsSub) {
         kpiPostsSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.publishedPosts || 0} bài | ${yearDetailText}: ${totalPostsYear} bài | Tổng: ${allTime.posts})`
@@ -786,7 +787,7 @@ function renderKpiCards(filteredMonths) {
     const kpiAnnounceSublabel = document.getElementById("kpiAnnounceSublabel");
     const kpiAnnounceSub = document.getElementById("kpiAnnounceSub");
     if (kpiAnnounceVal) kpiAnnounceVal.textContent = isScopeAll ? (currentMonthObj.announcements || 0) : scopeAnnounce;
-    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = isScopeAll ? `Thông báo ban hành (${monthTag})` : `Thông báo ban hành (${scope.label})`;
+    if (kpiAnnounceSublabel) kpiAnnounceSublabel.textContent = isScopeAll ? `Thông báo ban hành / ${monthTag}` : `Thông báo ban hành (${scope.label})`;
     if (kpiAnnounceSub) {
         kpiAnnounceSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.announcements || 0} tb | ${yearDetailText}: ${totalAnnounceYear} tb | Tổng: ${allTime.announcements})`
@@ -798,7 +799,7 @@ function renderKpiCards(filteredMonths) {
     const kpiPendingSublabel = document.getElementById("kpiPendingSublabel");
     const kpiPendingSub = document.getElementById("kpiPendingSub");
     if (kpiPendingVal) kpiPendingVal.textContent = isScopeAll ? (currentMonthObj.pendingPosts || 0) : scopePending;
-    if (kpiPendingSublabel) kpiPendingSublabel.textContent = isScopeAll ? `Bài viết chờ đăng (${monthTag})` : `Bài viết chờ đăng (${scope.label})`;
+    if (kpiPendingSublabel) kpiPendingSublabel.textContent = isScopeAll ? `Bài viết chờ đăng / ${monthTag}` : `Bài viết chờ đăng (${scope.label})`;
     if (kpiPendingSub) {
         kpiPendingSub.textContent = isScopeAll 
             ? `(${monthTag}: ${currentMonthObj.pendingPosts || 0} bài | Tồn đọng cần xử lý)` 
@@ -810,7 +811,7 @@ function renderKpiCards(filteredMonths) {
     const kpiPagesSublabel = document.getElementById("kpiPagesSublabel");
     const kpiPagesSub = document.getElementById("kpiPagesSub");
     if (kpiPagesVal) kpiPagesVal.textContent = isScopeAll ? (currentMonthObj.pages || 0) : scopePages;
-    if (kpiPagesSublabel) kpiPagesSublabel.textContent = isScopeAll ? `Trang/tháng (${monthTag})` : `Trang & phân hệ (${scope.label})`;
+    if (kpiPagesSublabel) kpiPagesSublabel.textContent = isScopeAll ? `Trang & phân hệ / ${monthTag}` : `Trang & phân hệ (${scope.label})`;
     if (kpiPagesSub) {
         kpiPagesSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.pages || 0} trang | ${yearDetailText}: ${totalPagesYear} trang | Tổng: ${allTime.pages})`
@@ -822,7 +823,7 @@ function renderKpiCards(filteredMonths) {
     const kpiStaffSublabel = document.getElementById("kpiStaffSublabel");
     const kpiStaffSub = document.getElementById("kpiStaffSub");
     if (kpiStaffVal) kpiStaffVal.textContent = isScopeAll ? (currentMonthObj.staff || 0) : scopeStaff;
-    if (kpiStaffSublabel) kpiStaffSublabel.textContent = isScopeAll ? `Cán bộ tăng (${monthTag})` : `Cán bộ tăng thêm (${scope.label})`;
+    if (kpiStaffSublabel) kpiStaffSublabel.textContent = isScopeAll ? `Cán bộ tăng / ${monthTag}` : `Cán bộ tăng thêm (${scope.label})`;
     if (kpiStaffSub) {
         kpiStaffSub.textContent = isScopeAll
             ? `(${monthTag}: +${currentMonthObj.staff || 0} cb | Nhân sự Viện: ${allTime.staff} cán bộ)`
@@ -834,7 +835,7 @@ function renderKpiCards(filteredMonths) {
     const kpiCatSublabel = document.getElementById("kpiCatSublabel");
     const kpiCatSub = document.getElementById("kpiCatSub");
     if (kpiCatVal) kpiCatVal.textContent = isScopeAll ? (currentMonthObj.categories || 0) : scopeCat;
-    if (kpiCatSublabel) kpiCatSublabel.textContent = isScopeAll ? `Danh mục bài viết (${monthTag})` : `Danh mục bài viết (${scope.label})`;
+    if (kpiCatSublabel) kpiCatSublabel.textContent = isScopeAll ? `Danh mục bài viết / ${monthTag}` : `Danh mục bài viết (${scope.label})`;
     if (kpiCatSub) {
         kpiCatSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.categories || 0} dm | ${yearDetailText}: ${totalCatYear} dm | Tổng: ${allTime.categories})`
@@ -846,7 +847,7 @@ function renderKpiCards(filteredMonths) {
     const kpiMediaSublabel = document.getElementById("kpiMediaSublabel");
     const kpiMediaSub = document.getElementById("kpiMediaSub");
     if (kpiMediaVal) kpiMediaVal.textContent = isScopeAll ? (currentMonthObj.images || 0) : scopeImages;
-    if (kpiMediaSublabel) kpiMediaSublabel.textContent = isScopeAll ? `Ảnh Media (${monthTag})` : `Ảnh Media tải lên (${scope.label})`;
+    if (kpiMediaSublabel) kpiMediaSublabel.textContent = isScopeAll ? `Ảnh Media tải lên / ${monthTag}` : `Ảnh Media tải lên (${scope.label})`;
     if (kpiMediaSub) {
         kpiMediaSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.images || 0} ảnh | ${yearDetailText}: ${totalImagesYear} ảnh | Tổng: ${allTime.images})`
@@ -858,7 +859,7 @@ function renderKpiCards(filteredMonths) {
     const kpiReportSublabel = document.getElementById("kpiReportSublabel");
     const kpiReportSub = document.getElementById("kpiReportSub");
     if (kpiReportVal) kpiReportVal.textContent = isScopeAll ? (currentMonthObj.reports || 0) : scopeReports;
-    if (kpiReportSublabel) kpiReportSublabel.textContent = isScopeAll ? `Báo cáo/tháng (${monthTag})` : `Báo cáo ban hành (${scope.label})`;
+    if (kpiReportSublabel) kpiReportSublabel.textContent = isScopeAll ? `Báo cáo ban hành / ${monthTag}` : `Báo cáo ban hành (${scope.label})`;
     if (kpiReportSub) {
         kpiReportSub.textContent = isScopeAll
             ? `(${monthTag}: ${currentMonthObj.reports || 0} bc | ${yearDetailText}: ${totalReportsYear})`
