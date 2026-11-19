@@ -148,6 +148,17 @@
                         <span class="admin-badge">Admin</span>
                     </div>
 
+                    <!-- Trạng thái kết nối Google Apps Script (Bảo mật - Không cần public Sheet) -->
+                    <div class="topbar-webhook-badge disconnected" id="topbarWebhookBadge1" onclick="openAppsScriptModal1()" title="Cấu hình Google Apps Script Web App để kết nối và sửa Google Sheet bảo mật (không cần chia sẻ công khai)">
+                        <span class="pulse-dot"></span>
+                        <span id="topbarWebhookText1">Apps Script: Chưa kết nối</span>
+                    </div>
+
+                    <button class="btn-topbar outline-emerald" id="btnConfigAppsScript1" onclick="openAppsScriptModal1()" title="Cài đặt kết nối qua Apps Script Web App bảo mật">
+                        <i class="fa-solid fa-code"></i>
+                        <span>Apps Script Web App</span>
+                    </button>
+
                     <a href="index2.html#add-transaction" class="btn-topbar" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border: none; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);" title="Sang Trang 2 để Thêm Giao Dịch Thu Chi Mới">
                         <i class="fa-solid fa-circle-plus"></i>
                         <span>Thêm Giao Dịch Thu Chi (Trang 2)</span>
@@ -240,6 +251,11 @@
                         <button class="btn-action btn-refresh" id="refreshDataBtn" title="Đồng bộ dữ liệu từ Google Sheet">
                             <i class="fa-solid fa-rotate"></i>
                             <span>Làm mới & Đồng bộ</span>
+                        </button>
+
+                        <button class="btn-action btn-refresh" id="appsScriptToolbarBtn" onclick="openAppsScriptModal1()" title="Cấu hình kết nối Google Sheet bảo mật qua Apps Script Web App">
+                            <i class="fa-solid fa-shield-halved text-emerald"></i>
+                            <span>Apps Script</span>
                         </button>
 
                         <button class="btn-action btn-add" id="openAddModalBtn" title="Thêm câu hỏi mới vào bảng tính thời gian thực">
@@ -687,9 +703,10 @@
                             <thead>
                                 <tr>
                                     <th style="width: 170px;">ID</th>
-                                    <th style="width: 300px;">Câu hỏi</th>
+                                    <th style="width: 280px;">Câu hỏi</th>
                                     <th>Câu trả lời</th>
-                                    <th style="width: 200px;">Thời gian (Cột Sheet)</th>
+                                    <th style="width: 190px;">Thời gian (Cột Sheet)</th>
+                                    <th style="width: 100px; text-align: center;">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody id="qaDataBody">
@@ -809,10 +826,301 @@
         </div>
     </div>
 
+    <!-- ================= MODAL: SỬA THÔNG TIN CÂU HỎI & PHẢN HỒI ================= -->
+    <div class="modal-backdrop" id="editQuestionModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-pen-to-square text-emerald"></i>
+                    Sửa Thông Tin Câu Hỏi &amp; Phản Hồi
+                </h3>
+                <button class="modal-close-btn" id="closeEditModalBtn" onclick="closeEditQuestionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editQuestionForm">
+                    <input type="hidden" id="editRecordId">
+                    <div class="form-group">
+                        <label for="editInputId" class="form-label">Mã ID bản ghi (Google Sheet)</label>
+                        <input type="text" id="editInputId" class="form-control" readonly style="background: #f1f5f9; color: #64748b; font-family: monospace; font-weight: 600;">
+                    </div>
+                    <div class="form-group">
+                        <label for="editInputQuestion" class="form-label">Nội dung câu hỏi <span class="required">*</span></label>
+                        <textarea id="editInputQuestion" class="form-control" rows="3" placeholder="Nhập câu hỏi..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editInputAnswer" class="form-label">Nội dung câu trả lời <span class="required">*</span></label>
+                        <textarea id="editInputAnswer" class="form-control" rows="6" placeholder="Nhập câu trả lời..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editInputTime" class="form-label">Mốc thời gian</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="editInputTime" class="form-control" placeholder="Thời gian...">
+                            <button type="button" class="btn-secondary" onclick="setEditCurrentTime()" style="white-space: nowrap; font-size: 11.5px; padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600;" title="Lấy ngày giờ hiện tại">
+                                <i class="fa-solid fa-clock"></i> Hiện tại
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div id="editSyncWarning" style="margin-top: 10px; font-size: 11.5px; color: #475569; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0; line-height: 1.5;">
+                    <i class="fa-solid fa-circle-check text-emerald"></i> Sau khi lưu, thông tin sẽ được cập nhật ngay trên trang web và tự động đồng bộ trực tiếp lên file <strong>Google Sheet</strong> qua liên kết Apps Script.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeEditQuestionModal()">Hủy Bỏ</button>
+                <button type="button" class="btn-primary" id="btnSaveEditedQuestion" onclick="handleSaveEditedQuestion()">
+                    <i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi &amp; Cập Nhật Sheet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: CẤU HÌNH & HƯỚNG DẪN APPS SCRIPT TRANG 1 ================= -->
+    <div class="modal-backdrop" id="appsScriptModal1">
+        <div class="modal-dialog modal-dialog-large">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-code text-emerald"></i>
+                    Cấu Hình Kết Nối Google Apps Script Web App (Bảo Mật Google Sheet)
+                </h3>
+                <button class="modal-close-btn" id="closeAppsScriptModal1Btn" onclick="closeAppsScriptModal1()">&times;</button>
+            </div>
+            <div class="modal-body" style="font-size: 12.5px; line-height: 1.6; color: #334155;">
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+                    <strong style="color: #065f46; display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                        <i class="fa-solid fa-shield-halved"></i> Bảo mật 100% - Không cần chia sẻ công khai Google Sheet
+                    </strong>
+                    <p style="margin-top: 4px; color: #047857; font-size: 12px; margin-bottom: 0;">
+                        Khi kết nối qua Apps Script Web App, file Google Sheet của bạn có thể đặt ở chế độ <strong>"Hạn chế" (Riêng tư - Chỉ mình bạn)</strong> mà trang web vẫn có thể <strong>Đọc số liệu</strong>, <strong>Thêm câu hỏi mới</strong> và <strong>Sửa chữa thông tin</strong> trực tiếp theo thời gian thực!
+                    </p>
+                </div>
+
+                <!-- Ô DÁN URL WEBHOOK / APPS SCRIPT -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                    <label for="inputAppsScriptUrl1" style="display: block; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                        <i class="fa-solid fa-link text-emerald"></i> Dán link Google Apps Script Web App:
+                    </label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input type="url" id="inputAppsScriptUrl1" class="form-control" placeholder="https://script.google.com/macros/s/.../exec" style="flex: 1; min-width: 250px;">
+                        <button type="button" class="btn-primary" id="btnSaveAppsScriptUrl1" onclick="handleSaveAppsScriptUrl1()" style="white-space: nowrap; padding: 8px 16px;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu &amp; Kích Hoạt
+                        </button>
+                        <button type="button" class="btn-sig-action" id="btnSyncFromAppsScript1" onclick="handleSyncFromAppsScript1()" style="white-space: nowrap; padding: 8px 14px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-weight: 600; cursor: pointer;" title="Tải dữ liệu mới nhất từ Apps Script">
+                            <i class="fa-solid fa-arrows-rotate"></i> Đồng Bộ Ngay
+                        </button>
+                    </div>
+                    <div id="appsScriptStatusDesc1" style="font-size: 11.5px; color: #64748b; margin-top: 6px;">
+                        <i class="fa-solid fa-circle-info text-sky"></i> Trạng thái hiện tại: <span id="appsScriptStatusText1" style="font-weight: 600; color: #e11d48;">Chưa kết nối link Apps Script</span>
+                    </div>
+                </div>
+
+                <p style="font-weight: 700; color: #0f172a; margin-bottom: 6px;">
+                    Thực hiện 3 bước đơn giản trên file Google Sheet để triển khai (khoảng 30 giây):
+                </p>
+                <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Mở file Google Sheet câu hỏi, vào menu <strong>Tiện ích mở rộng (Extensions) &gt; Apps Script</strong>.</li>
+                    <li>Xóa mã cũ trong file <code>Code.gs</code>, dán toàn bộ đoạn mã bên dưới vào rồi bấm <strong>Lưu (Ctrl + S)</strong>.</li>
+                    <li>Bấm nút <strong>Triển khai (Deploy) &gt; Tùy chọn triển khai mới (New deployment)</strong> &gt; Chọn loại <strong>Ứng dụng web (Web app)</strong>:
+                        <ul style="margin-top: 4px; margin-left: 18px; list-style-type: disc;">
+                            <li>Mục <em>"Người thực thi" (Execute as)</em>: Chọn <strong>"Tôi" (Me)</strong>.</li>
+                            <li>Mục <em>"Ai có quyền truy cập" (Who has access)</em>: Chọn <strong>"Bất kỳ ai" (Anyone)</strong> (Bắt buộc để web gửi và nhận dữ liệu).</li>
+                        </ul>
+                        &gt; Bấm <strong>Triển khai (Deploy)</strong> &gt; Sao chép <strong>URL Ứng dụng web</strong> và dán vào ô bên trên!
+                    </li>
+                </ol>
+
+                <div class="code-block-wrapper" style="margin-top: 12px;">
+                    <button type="button" class="btn-copy-code" id="btnCopyAppsScriptCode1" onclick="copyAppsScriptCode1()">
+                        <i class="fa-regular fa-copy"></i> Sao chép mã
+                    </button>
+                    <pre id="appsScriptCodeText1">/**
+ * ===================================================================
+ * GOOGLE APPS SCRIPT WEB APP - HỆ THỐNG THỐNG KÊ CÂU HỎI &amp; PHẢN HỒI (TRANG 1)
+ * Viện Quản Lý Chất Lượng &amp; Khảo Thí (IQA)
+ * Chức năng: Đọc (doGet) và Thêm/Sửa (doPost) trên Google Sheet RIÊNG TƯ
+ * Bảo mật 100%: KHÔNG CẦN chia sẻ công khai link Google Sheet!
+ * ===================================================================
+ */
+
+// 1. ĐỌC DỮ LIỆU TỪ GOOGLE SHEET (GET) - KHÔNG CẦN BẬT PUBLIC
+function doGet(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    var action = (e &amp;&amp; e.parameter &amp;&amp; e.parameter.action) ? e.parameter.action : "read";
+    var callback = (e &amp;&amp; e.parameter &amp;&amp; e.parameter.callback) ? e.parameter.callback : null;
+
+    if (action === "ping") {
+      return respondJson({ status: "success", message: "Apps Script Trang 1 đã kết nối thành công!" }, callback);
+    }
+
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow &lt; 2) {
+      return respondJson({ status: "success", count: 0, data: [] }, callback);
+    }
+
+    // Đọc từ dòng 2 (bỏ qua dòng tiêu đề), lấy 4 cột: ID, Câu hỏi, Câu trả lời, Thời gian
+    var range = sheet.getRange(2, 1, lastRow - 1, Math.max(4, lastCol));
+    var rawValues = range.getValues();
+    var records = [];
+
+    for (var i = 0; i &lt; rawValues.length; i++) {
+      var row = rawValues[i];
+      var id = String(row[0] !== undefined ? row[0] : "").trim();
+      var question = String(row[1] !== undefined ? row[1] : "").trim();
+      var answer = String(row[2] !== undefined ? row[2] : "").trim();
+      var time = String(row[3] !== undefined ? row[3] : "").trim();
+
+      if (question || answer || id) {
+        records.push({
+          id: id || String(i + 1),
+          question: question,
+          answer: answer,
+          time: time
+        });
+      }
+    }
+
+    return respondJson({
+      status: "success",
+      count: records.length,
+      data: records
+    }, callback);
+
+  } catch (err) {
+    return respondJson({
+      status: "error",
+      message: err.toString()
+    }, (e &amp;&amp; e.parameter) ? e.parameter.callback : null);
+  }
+}
+
+// 2. THÊM MỚI &amp; SỬA CHỮA THÔNG TIN TRỰC TIẾP LÊN SHEET (POST)
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    var contents = e.postData ? e.postData.contents : "{}";
+    var payload = JSON.parse(contents);
+    var action = payload.action || "add"; // "update", "add", "delete"
+
+    if (action === "update") {
+      // SỬA / CẬP NHẬT CÂU HỎI
+      var targetId = String(payload.id || "").trim();
+      if (!targetId) {
+        throw new Error("Thiếu mã ID câu hỏi cần cập nhật!");
+      }
+
+      var lastRow = sheet.getLastRow();
+      if (lastRow &lt; 2) {
+        throw new Error("Bảng dữ liệu Google Sheet đang trống!");
+      }
+
+      // Quét cột A để tìm dòng có ID tương ứng
+      var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      var foundRow = -1;
+
+      for (var r = 0; r &lt; idValues.length; r++) {
+        if (String(idValues[r][0]).trim() === targetId) {
+          foundRow = r + 2; // +2 vì dữ liệu bắt đầu từ dòng 2
+          break;
+        }
+      }
+
+      if (foundRow === -1) {
+        if (payload.rowIndex &amp;&amp; Number(payload.rowIndex) &gt;= 2 &amp;&amp; Number(payload.rowIndex) &lt;= lastRow) {
+          foundRow = Number(payload.rowIndex);
+        } else {
+          throw new Error("Không tìm thấy dòng có ID: " + targetId + " trên Google Sheet!");
+        }
+      }
+
+      // Cập nhật Cột B (Câu hỏi), C (Câu trả lời), D (Thời gian)
+      var newQ = payload.question !== undefined ? String(payload.question) : "";
+      var newA = payload.answer !== undefined ? String(payload.answer) : "";
+      var newT = payload.time !== undefined ? String(payload.time) : "";
+
+      sheet.getRange(foundRow, 2, 1, 3).setValues([[newQ, newA, newT]]);
+      SpreadsheetApp.flush();
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Đã cập nhật câu hỏi (ID: " + targetId + ") tại dòng " + foundRow + " trên Google Sheet!",
+        row: foundRow
+      })).setMimeType(ContentService.MimeType.JSON);
+
+    } else if (action === "delete") {
+      // XÓA BẢN GHI
+      var targetId = String(payload.id || "").trim();
+      var lastRow = sheet.getLastRow();
+      var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      var foundRow = -1;
+      for (var r = 0; r &lt; idValues.length; r++) {
+        if (String(idValues[r][0]).trim() === targetId) {
+          foundRow = r + 2;
+          break;
+        }
+      }
+      if (foundRow !== -1) {
+        sheet.deleteRow(foundRow);
+        SpreadsheetApp.flush();
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          message: "Đã xóa dòng " + foundRow + " trên Google Sheet!"
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        throw new Error("Không tìm thấy ID: " + targetId);
+      }
+
+    } else {
+      // THÊM CÂU HỎI MỚI (action: 'add')
+      var q = payload.question !== undefined ? String(payload.question) : "";
+      var a = payload.answer !== undefined ? String(payload.answer) : "";
+      var t = payload.time !== undefined ? String(payload.time) : "";
+      var id = payload.id ? String(payload.id) : String(new Date().getTime());
+
+      sheet.appendRow([id, q, a, t]);
+      SpreadsheetApp.flush();
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Đã thêm câu hỏi mới vào Google Sheet thành công!",
+        id: id
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Trả về JSON hoặc JSONP (chống hoàn toàn lỗi CORS / chặn chuyển hướng)
+function respondJson(obj, callback) {
+  var jsonStr = JSON.stringify(obj);
+  if (callback) {
+    return ContentService.createTextOutput(callback + "(" + jsonStr + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(jsonStr)
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-primary" onclick="closeAppsScriptModal1()">
+                    <i class="fa-solid fa-check"></i> Đã Hiểu &amp; Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="sheet_data.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261119_1150"></script>
 </body>
 </html>

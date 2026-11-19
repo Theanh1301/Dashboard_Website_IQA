@@ -373,6 +373,8 @@ async function initApp() {
     updateDetectedYears();
     updateMonthFilterOptions();
     renderAllData();
+    updateAppsScriptStatusUI1();
+    initAppsScriptKeepAlive1();
 
     if (syncStatusTextEl) {
         if (hasPersistedUpdate && lastSyncTime) {
@@ -382,10 +384,15 @@ async function initApp() {
         }
     }
 
-    // 4. Tự động kiểm tra & cập nhật ngầm nếu có kết nối mạng (sau 2 giây)
+    // 4. Tự động kiểm tra & cập nhật ngầm nếu có kết nối mạng (sau 1.5 giây)
     setTimeout(() => {
-        loadSheetDataFromUrl(currentGoogleSheetUrl, false, true);
-    }, 2000);
+        const appsScriptUrl = getActiveAppsScriptUrl1();
+        if (appsScriptUrl && (appsScriptUrl.startsWith('http://') || appsScriptUrl.startsWith('https://'))) {
+            fetchDataFromAppsScript(appsScriptUrl, false, true);
+        } else {
+            loadSheetDataFromUrl(currentGoogleSheetUrl, false, true);
+        }
+    }, 1500);
 }
 
 if (document.readyState === 'loading') {
@@ -508,7 +515,12 @@ function initEventListeners() {
 
     // Các nút Làm mới / Đồng bộ
     const handleSync = async () => {
-        await loadSheetDataFromUrl(currentGoogleSheetUrl, true, false);
+        const appsScriptUrl = getActiveAppsScriptUrl1();
+        if (appsScriptUrl && (appsScriptUrl.startsWith('http://') || appsScriptUrl.startsWith('https://'))) {
+            await fetchDataFromAppsScript(appsScriptUrl, true, false);
+        } else {
+            await loadSheetDataFromUrl(currentGoogleSheetUrl, true, false);
+        }
     };
 
     if (refreshDataBtn) refreshDataBtn.addEventListener('click', handleSync);
@@ -626,6 +638,15 @@ async function loadSheetDataFromUrl(url, isUserAction = false, isSilent = false)
 
     currentGoogleSheetUrl = url;
     localStorage.setItem('ql_messenger_custom_sheet_url', url);
+
+    // ƯU TIÊN SỐ 1: Nếu đã cấu hình Apps Script Web App -> Đọc bảo mật qua Apps Script (Không cần public Google Sheet)
+    const appsScriptUrl = getActiveAppsScriptUrl1();
+    if (appsScriptUrl && (appsScriptUrl.startsWith('http://') || appsScriptUrl.startsWith('https://'))) {
+        const appsScriptSuccess = await fetchDataFromAppsScript(appsScriptUrl, isUserAction, isSilent);
+        if (appsScriptSuccess) {
+            return;
+        }
+    }
 
     if (topRefreshBtn && isUserAction) topRefreshBtn.classList.add('spinning');
     if (syncStatusTextEl) {
@@ -1888,7 +1909,7 @@ function renderRawDataTable() {
     if (totalFiltered === 0) {
         qaDataBodyEl.innerHTML = `
             <tr>
-                <td colspan="4" style="text-align: center; padding: 24px; color: #94a3b8;">
+                <td colspan="5" style="text-align: center; padding: 24px; color: #94a3b8;">
                     Không tìm thấy câu hỏi hoặc câu trả lời nào phù hợp.
                 </td>
             </tr>
@@ -1909,6 +1930,11 @@ function renderRawDataTable() {
                 <td class="cell-question">${escapeHtml(item.question)}</td>
                 <td class="cell-answer">${escapeHtml(item.answer)}</td>
                 <td class="cell-time"><i class="fa-regular fa-clock"></i> ${escapeHtml(item.time)}</td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <button type="button" class="btn-table-edit" onclick="openEditQuestionModal('${escapeHtml(displayId)}')" title="Sửa nội dung câu hỏi &amp; câu trả lời">
+                        <i class="fa-solid fa-pen-to-square"></i> Sửa
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -1970,6 +1996,18 @@ function handleSaveNewQuestion() {
     updateDetectedYears();
     renderAllData();
     showToast("Đã thêm câu hỏi và câu trả lời thành công! Dữ liệu mới đã được lưu lại vĩnh viễn.", "success");
+
+    // Tự động đồng bộ lên Google Sheet qua Apps Script Web App (nếu có cấu hình)
+    const appsScriptUrl = getActiveAppsScriptUrl1();
+    if (appsScriptUrl && appsScriptUrl.startsWith('http')) {
+        sendUpdateToAppsScript1(appsScriptUrl, {
+            action: 'add',
+            id: newRecord.id,
+            question: newRecord.question,
+            answer: newRecord.answer,
+            time: newRecord.time
+        });
+    }
 }
 
 /**
@@ -2282,4 +2320,454 @@ function initSignatureConfig() {
         });
     }
 }
+
+/* ===================================================================
+   TÍCH HỢP GOOGLE APPS SCRIPT WEB APP - TRANG 1 (THỐNG KÊ CÂU HỎI)
+   Bảo mật 100%: Kết nối, Hiển thị và Sửa chữa thông tin với Google Sheet
+   mà KHÔNG CẦN chia sẻ công khai ("Anyone with link") file Google Sheet!
+   =================================================================== */
+
+const APPS_SCRIPT_URL_KEY1 = 'ql_messenger_apps_script_url';
+let currentAppsScriptUrl1 = (localStorage.getItem(APPS_SCRIPT_URL_KEY1) || '').trim();
+
+/**
+ * Lấy URL Apps Script Web App Trang 1
+ */
+function getActiveAppsScriptUrl1() {
+    let saved = '';
+    try {
+        saved = (localStorage.getItem(APPS_SCRIPT_URL_KEY1) || '').trim();
+    } catch (e) {}
+    if (!saved && window.DEFAULT_APPS_SCRIPT_URL_PAGE1) {
+        saved = String(window.DEFAULT_APPS_SCRIPT_URL_PAGE1).trim();
+    }
+    return saved;
+}
+
+/**
+ * Cập nhật giao diện trạng thái kết nối Apps Script trên Header
+ */
+function updateAppsScriptStatusUI1() {
+    const url = getActiveAppsScriptUrl1();
+    const isValid = Boolean(url && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes('docs.google.com/spreadsheets'));
+
+    const badge = document.getElementById('topbarWebhookBadge1');
+    const textEl = document.getElementById('topbarWebhookText1');
+    const statusText1 = document.getElementById('appsScriptStatusText1');
+    const inputUrl = document.getElementById('inputAppsScriptUrl1');
+
+    if (inputUrl && !inputUrl.value && url) {
+        inputUrl.value = url;
+    }
+
+    if (badge && textEl) {
+        if (isValid) {
+            badge.className = "topbar-webhook-badge connected";
+            textEl.textContent = "Apps Script: Đã kết nối Sheet";
+            badge.title = "Đang kết nối bảo mật qua Google Apps Script Web App (Sheet riêng tư)";
+        } else {
+            badge.className = "topbar-webhook-badge disconnected";
+            textEl.textContent = "Apps Script: Chưa kết nối";
+            badge.title = "Chưa kết nối Apps Script. Bấm vào đây để thiết lập kết nối bảo mật không cần public link Google Sheet!";
+        }
+    }
+
+    if (statusText1) {
+        if (isValid) {
+            statusText1.innerHTML = `<span style="color: #059669; font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Đang hoạt động:</span> <span style="font-family: monospace; font-size: 11px; color: #0284c7;">${escapeHtml(url.substring(0, 48))}...</span>`;
+        } else {
+            statusText1.innerHTML = `<span style="color: #e11d48; font-weight: 700;"><i class="fa-solid fa-circle-xmark"></i> Chưa kết nối:</span> Hãy triển khai Web App và dán link vào ô trên.`;
+        }
+    }
+}
+
+/**
+ * Giữ kết nối Apps Script luôn sẵn sàng (chống cold start)
+ */
+function initAppsScriptKeepAlive1() {
+    setInterval(() => {
+        const url = getActiveAppsScriptUrl1();
+        if (url && url.startsWith('https://script.google.com/macros/s/')) {
+            fetch(url + (url.includes('?') ? '&' : '?') + 'action=ping', { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+        }
+    }, 4 * 60 * 1000);
+}
+
+/**
+ * Mở modal cấu hình Apps Script Trang 1
+ */
+window.openAppsScriptModal1 = function() {
+    const modal = document.getElementById('appsScriptModal1');
+    if (!modal) return;
+    modal.classList.add('show');
+    const input = document.getElementById('inputAppsScriptUrl1');
+    if (input) input.value = getActiveAppsScriptUrl1();
+    updateAppsScriptStatusUI1();
+};
+
+/**
+ * Đóng modal cấu hình Apps Script Trang 1
+ */
+window.closeAppsScriptModal1 = function() {
+    const modal = document.getElementById('appsScriptModal1');
+    if (modal) modal.classList.remove('show');
+};
+
+/**
+ * Lưu link Apps Script Web App Trang 1
+ */
+window.handleSaveAppsScriptUrl1 = function() {
+    const input = document.getElementById('inputAppsScriptUrl1');
+    const url = input ? input.value.trim() : '';
+
+    if (!url) {
+        localStorage.removeItem(APPS_SCRIPT_URL_KEY1);
+        currentAppsScriptUrl1 = '';
+        updateAppsScriptStatusUI1();
+        showToast("Đã xóa liên kết Google Apps Script Trang 1.", "info");
+        return;
+    }
+
+    if (url.includes('docs.google.com/spreadsheets')) {
+        showToast("Đây là link xem Google Sheet thông thường! Bạn cần dán link Web App Apps Script (https://script.google.com/macros/s/.../exec) để kết nối bảo mật!", "warning");
+        return;
+    }
+
+    if (!url.startsWith('https://') && !url.startsWith('http://')) {
+        showToast("Link Web App không hợp lệ! URL phải bắt đầu bằng https://script.google.com/macros/s/.../exec", "warning");
+        return;
+    }
+
+    localStorage.setItem(APPS_SCRIPT_URL_KEY1, url);
+    currentAppsScriptUrl1 = url;
+    updateAppsScriptStatusUI1();
+    showToast("Đã lưu và kích hoạt link Apps Script thành công! Đang tiến hành tải dữ liệu từ Google Sheet...", "success");
+
+    // Tự động đồng bộ ngay
+    fetchDataFromAppsScript(url, true, false);
+};
+
+/**
+ * Nút đồng bộ từ Apps Script trong modal
+ */
+window.handleSyncFromAppsScript1 = function() {
+    const url = getActiveAppsScriptUrl1();
+    if (!url) {
+        showToast("Vui lòng dán link Apps Script Web App trước khi đồng bộ!", "warning");
+        return;
+    }
+    fetchDataFromAppsScript(url, true, false);
+};
+
+/**
+ * Sao chép mã Google Apps Script
+ */
+window.copyAppsScriptCode1 = function() {
+    const pre = document.getElementById('appsScriptCodeText1');
+    if (!pre) return;
+    const text = pre.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("Đã sao chép toàn bộ mã Apps Script Trang 1 vào bộ nhớ tạm!", "success");
+    }).catch(() => {
+        showToast("Không thể sao chép tự động, bạn hãy bôi đen mã để copy thủ công.", "warning");
+    });
+};
+
+/**
+ * TẢI DỮ LIỆU TỪ GOOGLE SHEET QUA APPS SCRIPT WEB APP
+ * (Bảo mật - Chạy được ngay cả khi file Google Sheet để chế độ RIÊNG TƯ / PRIVATE)
+ */
+async function fetchDataFromAppsScript(url, isUserAction = false, isSilent = false) {
+    if (!url) return false;
+
+    if (topRefreshBtn && isUserAction) topRefreshBtn.classList.add('spinning');
+    if (syncStatusTextEl) {
+        syncStatusTextEl.textContent = isUserAction ? "Đang đồng bộ từ Google Apps Script..." : "Đang kiểm tra kết nối Apps Script...";
+    }
+
+    try {
+        let rawData = null;
+
+        // Cách 1: Thử gọi fetch GET trực tiếp
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 8000);
+            const fetchUrl = url + (url.includes('?') ? '&' : '?') + 'action=read&t=' + Date.now();
+            const res = await fetch(fetchUrl, { signal: controller.signal, cache: 'no-store' });
+            clearTimeout(timer);
+            if (res.ok) {
+                const json = await res.json();
+                if (json && (json.data || json.records || Array.isArray(json))) {
+                    rawData = json.data || json.records || json;
+                }
+            }
+        } catch (e1) {
+            console.log("Fetch trực tiếp qua Apps Script gặp hạn chế redirect/CORS, tự động chuyển sang JSONP Stream:", e1);
+        }
+
+        // Cách 2: Nếu fetch trực tiếp bị chặn redirect, dùng JSONP Stream (100% không bị CORS)
+        if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
+            try {
+                rawData = await fetchAppsScriptViaJsonp(url, 15000);
+            } catch (e2) {
+                console.warn("Lỗi JSONP Apps Script:", e2);
+            }
+        }
+
+        if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+            const normalized = normalizeRecordsFromAppsScript(rawData);
+            if (normalized.length > 0) {
+                applyNewRecords(normalized, "Google Apps Script Web App");
+                updateAppsScriptStatusUI1();
+                if (isUserAction && !isSilent) {
+                    showToast(`Đã đồng bộ thành công ${normalized.length.toLocaleString('vi-VN')} câu hỏi từ Google Sheet qua Apps Script!`, "success");
+                }
+                return true;
+            }
+        }
+
+        if (isUserAction && !isSilent) {
+            showToast("Đã kết nối Apps Script nhưng chưa nhận được dữ liệu hợp lệ. Hãy kiểm tra lại file Sheet!", "warning");
+        }
+        return false;
+    } catch (err) {
+        console.warn("Lỗi tải từ Apps Script Web App:", err);
+        if (isUserAction && !isSilent) {
+            showToast("Lỗi kết nối Apps Script: " + err.message, "warning");
+        }
+        return false;
+    } finally {
+        if (topRefreshBtn) {
+            setTimeout(() => topRefreshBtn.classList.remove('spinning'), 300);
+        }
+    }
+}
+
+/**
+ * Tải stream JSONP từ Google Apps Script (Miễn nhiễm mọi hạn chế CORS & Redirect)
+ */
+function fetchAppsScriptViaJsonp(url, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'appsScriptCb_' + Math.floor(Math.random() * 1000000);
+        const script = document.createElement('script');
+        let timer = null;
+
+        const cleanup = () => {
+            if (timer) clearTimeout(timer);
+            if (script.parentNode) script.parentNode.removeChild(script);
+            delete window[callbackName];
+        };
+
+        timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("Timeout khi kết nối Apps Script JSONP"));
+        }, timeoutMs);
+
+        window[callbackName] = function(res) {
+            cleanup();
+            if (res && res.status === 'success' && res.data) {
+                resolve(res.data);
+            } else if (res && (res.data || res.records)) {
+                resolve(res.data || res.records);
+            } else if (Array.isArray(res)) {
+                resolve(res);
+            } else {
+                reject(new Error("Dữ liệu Apps Script trả về không hợp lệ"));
+            }
+        };
+
+        const jsonpUrl = url + (url.includes('?') ? '&' : '?') + 'action=read&callback=' + callbackName + '&t=' + Date.now();
+        script.src = jsonpUrl;
+        script.onerror = () => {
+            cleanup();
+            reject(new Error("Không thể kết nối stream Apps Script JSONP"));
+        };
+        document.head.appendChild(script);
+    });
+}
+
+/**
+ * Chuẩn hóa danh sách bản ghi nhận từ Apps Script
+ */
+function normalizeRecordsFromAppsScript(data) {
+    if (!Array.isArray(data)) return [];
+    return data.map((item, idx) => {
+        if (Array.isArray(item)) {
+            return {
+                id: String(item[0] || (idx + 1)).trim(),
+                question: String(item[1] || '').trim(),
+                answer: String(item[2] || '').trim(),
+                time: String(item[3] || '').trim()
+            };
+        } else if (typeof item === 'object' && item !== null) {
+            return {
+                id: String(item.id || item.ID || (idx + 1)).trim(),
+                question: String(item.question || item.cauHoi || item.Question || '').trim(),
+                answer: String(item.answer || item.cauTraLoi || item.Answer || '').trim(),
+                time: String(item.time || item.thoiGian || item.Time || '').trim()
+            };
+        }
+        return null;
+    }).filter(r => r && (r.question || r.answer || r.id));
+}
+
+/**
+ * GỬI DỮ LIỆU CẬP NHẬT / THÊM MỚI TỚI APPS SCRIPT WEB APP (CHẠY NGẦM KHÔNG LAG)
+ */
+async function sendUpdateToAppsScript1(url, payload) {
+    if (!url) return false;
+    try {
+        if (payload.action === 'update') {
+            showToast("Đang đồng bộ câu hỏi được chỉnh sửa lên Google Sheet qua Apps Script...", "info");
+        } else if (payload.action === 'add') {
+            showToast("Đang ghi nhận câu hỏi mới vào Google Sheet qua Apps Script...", "info");
+        }
+
+        fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        }).then(() => {
+            if (payload.action === 'update') {
+                showToast("Đã đồng bộ chỉnh sửa câu hỏi trực tiếp lên Google Sheet thành công!", "success");
+            } else if (payload.action === 'add') {
+                showToast("Đã thêm câu hỏi mới vào Google Sheet thành công!", "success");
+            }
+        }).catch(err => {
+            console.warn("Lỗi gửi dữ liệu tới Apps Script:", err);
+            showToast("Đã lưu trên website nhưng việc gửi tới Apps Script gặp sự cố!", "warning");
+        });
+
+        return true;
+    } catch (err) {
+        console.warn("Lỗi sendUpdateToAppsScript1:", err);
+        return false;
+    }
+}
+
+/* ===================================================================
+   CHỨC NĂNG SỬA THÔNG TIN CÂU HỎI & PHẢN HỒI (TRỰC TIẾP TRÊN SHEET)
+   =================================================================== */
+
+/**
+ * Mở modal sửa thông tin câu hỏi
+ */
+window.openEditQuestionModal = function(recordId) {
+    if (!recordId) return;
+    const strId = String(recordId).trim();
+    const item = qaRecords.find(r => String(r.id).trim() === strId);
+    if (!item) {
+        showToast("Không tìm thấy thông tin câu hỏi có ID: " + strId, "warning");
+        return;
+    }
+
+    const modal = document.getElementById('editQuestionModal');
+    if (!modal) return;
+
+    document.getElementById('editRecordId').value = item.id;
+    document.getElementById('editInputId').value = item.id;
+    document.getElementById('editInputQuestion').value = item.question || '';
+    document.getElementById('editInputAnswer').value = item.answer || '';
+    document.getElementById('editInputTime').value = item.time || '';
+
+    modal.classList.add('show');
+};
+
+/**
+ * Đóng modal sửa thông tin câu hỏi
+ */
+window.closeEditQuestionModal = function() {
+    const modal = document.getElementById('editQuestionModal');
+    if (modal) modal.classList.remove('show');
+};
+
+/**
+ * Gán thời gian hiện tại vào ô mốc thời gian sửa
+ */
+window.setEditCurrentTime = function() {
+    const now = new Date();
+    const timeStr = `Thời gian ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} ngày ${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    const input = document.getElementById('editInputTime');
+    if (input) input.value = timeStr;
+};
+
+/**
+ * Lưu thay đổi câu hỏi & đồng bộ lên Google Sheet
+ */
+window.handleSaveEditedQuestion = function() {
+    const recordId = document.getElementById('editRecordId').value;
+    const qVal = document.getElementById('editInputQuestion').value.trim();
+    const aVal = document.getElementById('editInputAnswer').value.trim();
+    const tVal = document.getElementById('editInputTime').value.trim();
+
+    if (!qVal) {
+        showToast("Vui lòng nhập nội dung câu hỏi!", "warning");
+        document.getElementById('editInputQuestion').focus();
+        return;
+    }
+    if (!aVal) {
+        showToast("Vui lòng nhập nội dung câu trả lời!", "warning");
+        document.getElementById('editInputAnswer').focus();
+        return;
+    }
+
+    const item = qaRecords.find(r => String(r.id).trim() === String(recordId).trim());
+    if (!item) {
+        showToast("Không tìm thấy bản ghi cần sửa!", "warning");
+        return;
+    }
+
+    // 1. Cập nhật dữ liệu trong bộ nhớ
+    item.question = qVal;
+    item.answer = aVal;
+    if (tVal) item.time = tVal;
+
+    // Cập nhật trong danh sách câu hỏi người dùng tự thêm (nếu có)
+    const userItem = userAddedQuestions.find(r => String(r.id).trim() === String(recordId).trim());
+    if (userItem) {
+        userItem.question = qVal;
+        userItem.answer = aVal;
+        userItem.time = item.time;
+        saveUserAddedQuestionsToStorage();
+    }
+
+    // Lưu bền vững vào IndexedDB & LocalStorage
+    saveLatestUpdatedData(qaRecords, "Sửa thông tin câu hỏi");
+
+    // Đóng modal
+    closeEditQuestionModal();
+
+    // Cập nhật lại giao diện ngay lập tức
+    updateDetectedYears();
+    renderAllData();
+
+    // 2. Gửi đồng bộ lên Google Sheet qua Apps Script Web App
+    const appsScriptUrl = getActiveAppsScriptUrl1();
+    if (appsScriptUrl && appsScriptUrl.startsWith('http')) {
+        sendUpdateToAppsScript1(appsScriptUrl, {
+            action: 'update',
+            id: recordId,
+            question: qVal,
+            answer: aVal,
+            time: item.time
+        });
+    } else {
+        showToast("Đã lưu sửa đổi trên website! (Hãy kết nối Apps Script Web App để tự động đồng bộ sang Google Sheet)", "info");
+    }
+};
+
+// Đăng ký toàn cục
+window.openAppsScriptModal1 = openAppsScriptModal1;
+window.closeAppsScriptModal1 = closeAppsScriptModal1;
+window.handleSaveAppsScriptUrl1 = handleSaveAppsScriptUrl1;
+window.handleSyncFromAppsScript1 = handleSyncFromAppsScript1;
+window.copyAppsScriptCode1 = copyAppsScriptCode1;
+window.openEditQuestionModal = openEditQuestionModal;
+window.closeEditQuestionModal = closeEditQuestionModal;
+window.setEditCurrentTime = setEditCurrentTime;
+window.handleSaveEditedQuestion = handleSaveEditedQuestion;
+
 
