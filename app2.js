@@ -257,8 +257,8 @@ function initApp() {
         try {
             const parsedList = JSON.parse(savedFinanceTx);
             if (Array.isArray(parsedList) && parsedList.length > 0) {
-                // Nếu dữ liệu trong RAW_FINANCE_SHEET_DATA nhiều hơn hoặc bằng bản lưu cũ, ưu tiên dùng dữ liệu sheet đầy đủ
-                if (window.RAW_FINANCE_SHEET_DATA && Array.isArray(window.RAW_FINANCE_SHEET_DATA) && window.RAW_FINANCE_SHEET_DATA.length >= parsedList.length) {
+                // Nếu dữ liệu trong RAW_FINANCE_SHEET_DATA nhiều hơn bản lưu cũ, ưu tiên nạp bản sheet đầy đủ
+                if (window.RAW_FINANCE_SHEET_DATA && Array.isArray(window.RAW_FINANCE_SHEET_DATA) && window.RAW_FINANCE_SHEET_DATA.length > parsedList.length) {
                     applyNewFinanceRows(window.RAW_FINANCE_SHEET_DATA, "Google Sheet (Đã đồng bộ)");
                     restoredFromStorage = true;
                 } else {
@@ -320,15 +320,17 @@ function initRealtimeClock() {
 }
 
 /**
- * Định dạng tiền tệ VNĐ chuẩn
+ * Định dạng tiền tệ VNĐ chuẩn (hỗ trợ hiển thị số âm chuẩn xác)
  */
 function formatCurrency(num) {
     if (num === null || num === undefined || isNaN(num)) return '0 ₫';
-    return Math.round(num).toLocaleString('vi-VN') + ' ₫';
+    const rounded = Math.round(num);
+    if (rounded === 0 || Math.abs(rounded) === 0) return '0 ₫';
+    return rounded.toLocaleString('vi-VN') + ' ₫';
 }
 
 /**
- * Làm sạch chuỗi tiền tệ thành số thực
+ * Làm sạch chuỗi tiền tệ thành số thực (hỗ trợ số âm từ Google Sheet: dấu '-', dấu '−', ngoặc đơn kế toán, v.v.)
  */
 function cleanMoneyToNumber(val) {
     if (val === null || val === undefined) return 0;
@@ -336,12 +338,19 @@ function cleanMoneyToNumber(val) {
     let s = String(val).trim();
     if (!s) return 0;
 
+    // Chuẩn hóa các biến thể dấu trừ Unicode (−, –, —, ﹣, －)
+    s = s.replace(/[\u2212\u2013\u2014\uFE63\uFF0D]/g, '-');
+
+    // Nhận diện số âm: chứa dấu '-', nằm trong ngoặc đơn kế toán (xxx), hoặc có chữ âm
     let isNegative = false;
-    if (s.startsWith('-') || (s.startsWith('(') && s.endsWith(')'))) {
+    if (s.includes('-') || /\(.*\)/.test(s) || /^\s*\(/.test(s) || /âm/i.test(s)) {
         isNegative = true;
     }
 
-    s = s.replace(/[^\d,\.\-]/g, '');
+    // Loại bỏ mọi ký tự ngoại trừ chữ số, dấu phẩy, dấu chấm
+    s = s.replace(/[^\d,\.]/g, '');
+    if (!s) return 0;
+
     if (s.includes('.') && s.includes(',')) {
         if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
             s = s.replace(/\./g, '').replace(',', '.');
@@ -364,7 +373,7 @@ function cleanMoneyToNumber(val) {
 
     let n = parseFloat(s);
     if (isNaN(n)) return 0;
-    return isNegative ? -Math.abs(n) : n;
+    return isNegative ? -Math.abs(n) : Math.abs(n);
 }
 
 /**
@@ -523,7 +532,7 @@ function fetchViaJsonp(sheetId, gid, timeoutMs = 8000) {
                     return;
                 }
 
-                if (expVal > 0 || incVal > 0 || balVal > 0 || timeVal) {
+                if (expVal > 0 || incVal > 0 || balVal !== 0 || !isNaN(balVal) || timeVal) {
                     parsedResults.push({
                         id: `GD-0${idx + 1}`,
                         expense: expVal,
@@ -606,16 +615,19 @@ function applyNewFinanceRows(records, sourceName) {
     let totalExpenseSum = 0;
     let totalIncomeSum = 0;
 
-    // Tìm số liệu cuối cùng của cột 'Số tiền còn lại'
+    // Tìm số liệu cuối cùng của cột 'Số tiền còn lại' (nhận diện chính xác cả số dương và số âm)
     let lastValidBalance = null;
     for (let i = records.length - 1; i >= 0; i--) {
-        const b = cleanMoneyToNumber(records[i].balance);
-        if (b > 0) {
-            lastValidBalance = b;
-            break;
+        const rawBal = records[i].balance;
+        if (rawBal !== null && rawBal !== undefined && String(rawBal).trim() !== '') {
+            const b = cleanMoneyToNumber(rawBal);
+            if (!isNaN(b)) {
+                lastValidBalance = b;
+                break;
+            }
         }
     }
-    if (lastValidBalance !== null && lastValidBalance > 0) {
+    if (lastValidBalance !== null && !isNaN(lastValidBalance)) {
         latestRemainingBalance = lastValidBalance;
     }
 
@@ -710,8 +722,11 @@ function calculateMonthlyStatsData2() {
             mTx.forEach(t => {
                 mInc += (cleanMoneyToNumber(t.income) || 0);
                 mExp += (cleanMoneyToNumber(t.expense) || 0);
-                if (t.balance && cleanMoneyToNumber(t.balance) > 0) {
-                    lastBalInMonth = cleanMoneyToNumber(t.balance);
+                if (t.balance !== null && t.balance !== undefined && String(t.balance).trim() !== '') {
+                    const b = cleanMoneyToNumber(t.balance);
+                    if (!isNaN(b)) {
+                        lastBalInMonth = b;
+                    }
                 }
             });
 
@@ -755,7 +770,7 @@ function calculateMonthlyStatsData2() {
                 mInc += r.income;
                 mExp += r.expense;
                 mCount += (r.count || 0);
-                if (r.balance) mBal = r.balance;
+                if (r.balance !== null && r.balance !== undefined && !isNaN(r.balance)) mBal = r.balance;
             }
         });
         const isCurrentMonth = (m === curM);
@@ -840,16 +855,40 @@ function renderTopStatCards() {
         : `Tổng các khoản đã chi trong Tháng ${displayMonth} (${yearStr}): ${formatCurrency(dispExp)} (${dispCount} giao dịch)`;
     if (cardExpenseFooterEl) cardExpenseFooterEl.textContent = `Tổng tiền đã chi cả ${yearStr}: ${formatCurrency(totalYearExp)}`;
 
-    // 3. Thẻ Số tiền còn lại
-    if (totalBalanceCountEl) totalBalanceCountEl.textContent = formatCurrency(finalBal);
-    if (cardBalanceCaptionEl) cardBalanceCaptionEl.textContent = "SỐ TIỀN CÒN LẠI (SỐ LIỆU CUỐI CÙNG TRÊN SHEET)";
-    if (currentMonthBalanceLabelEl) currentMonthBalanceLabelEl.textContent = `Số tiền còn lại cuối cùng theo Google Sheet: ${formatCurrency(finalBal)}`;
-    if (cardBalanceFooterEl) cardBalanceFooterEl.textContent = `Cập nhật đúng số liệu cuối cùng của cột "Số tiền còn lại" (${formatCurrency(finalBal)})`;
+    // 3. Thẻ Số tiền còn lại (hỗ trợ hiển thị cảnh báo đỏ khi số dư âm / thâm hụt quỹ)
+    if (totalBalanceCountEl) {
+        totalBalanceCountEl.textContent = formatCurrency(finalBal);
+        totalBalanceCountEl.className = finalBal < 0 ? 'card-metric text-rose-metric' : 'card-metric text-balance-metric';
+    }
+    if (cardBalanceCaptionEl) {
+        if (finalBal < 0) {
+            cardBalanceCaptionEl.innerHTML = `<span style="color:#e11d48; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> SỐ TIỀN CÒN LẠI (QUỸ ĐANG ÂM / THÂM HỤT)</span>`;
+        } else {
+            cardBalanceCaptionEl.textContent = "SỐ TIỀN CÒN LẠI (SỐ LIỆU CUỐI CÙNG TRÊN SHEET)";
+        }
+    }
+    if (currentMonthBalanceLabelEl) {
+        if (finalBal < 0) {
+            currentMonthBalanceLabelEl.innerHTML = `<span style="color:#e11d48; font-weight:600;"><i class="fa-solid fa-circle-exclamation"></i> Cảnh báo: Quỹ thâm hụt ${formatCurrency(finalBal)}</span>`;
+        } else {
+            currentMonthBalanceLabelEl.textContent = `Số tiền còn lại cuối cùng theo Google Sheet: ${formatCurrency(finalBal)}`;
+        }
+    }
+    if (cardBalanceFooterEl) {
+        if (finalBal < 0) {
+            cardBalanceFooterEl.innerHTML = `<span style="color:#e11d48; font-weight:600;"><i class="fa-solid fa-circle-exclamation"></i> Quỹ đang âm: ${formatCurrency(finalBal)} (Số liệu cuối cùng cột Số tiền còn lại)</span>`;
+        } else {
+            cardBalanceFooterEl.textContent = `Cập nhật đúng số liệu cuối cùng của cột "Số tiền còn lại" (${formatCurrency(finalBal)})`;
+        }
+    }
 
     // Legend Pills
     if (legendIncomeCountEl) legendIncomeCountEl.textContent = formatCurrency(dispInc);
     if (legendExpenseCountEl) legendExpenseCountEl.textContent = formatCurrency(dispExp);
-    if (legendBalanceCountEl) legendBalanceCountEl.textContent = formatCurrency(finalBal);
+    if (legendBalanceCountEl) {
+        legendBalanceCountEl.textContent = formatCurrency(finalBal);
+        legendBalanceCountEl.className = finalBal < 0 ? 'legend-metric text-rose-metric' : 'legend-metric text-balance-metric';
+    }
 }
 
 /**
@@ -1015,7 +1054,7 @@ function renderMainFinanceChart() {
                     grid: { color: 'rgba(226, 232, 240, 0.6)' },
                     ticks: {
                         callback: function(val) {
-                            if (val >= 1000000) return (val / 1000000).toFixed(0) + ' tr';
+                            if (Math.abs(val) >= 1000000) return (val / 1000000).toFixed(0) + ' tr';
                             return val.toLocaleString('vi-VN');
                         }
                     }
@@ -1040,6 +1079,7 @@ function renderMiniCharts() {
 
     const displayMonth = selectedMonth === 'all' ? curM : selectedMonth;
     const activeMonthData = yearList[displayMonth - 1] || { income: 0, expense: 0, balance: latestRemainingBalance };
+    const curBal = (activeMonthData.balance !== undefined && activeMonthData.balance !== null) ? activeMonthData.balance : latestRemainingBalance;
 
     // Lọc danh sách giao dịch hiển thị trên mini chart 1
     let txToShow = [];
@@ -1113,13 +1153,12 @@ function renderMiniCharts() {
         });
     }
 
-    // Mini Chart 2: Cơ cấu dòng tiền (Đã chi vs Số tiền tăng vs Số tiền còn lại)
+    // Mini Chart 2: Cơ cấu dòng tiền (Đã chi vs Số tiền tăng vs Số tiền còn lại - hỗ trợ số dư âm)
     const canvas2 = document.getElementById('chartMiniStructure');
     if (canvas2 && typeof Chart !== 'undefined') {
         if (miniStructureChart) miniStructureChart.destroy();
         const ctx2 = canvas2.getContext('2d');
 
-        const curBal = activeMonthData.balance || latestRemainingBalance;
         const curExp = activeMonthData.expense || 0;
         const curInc = activeMonthData.income || 0;
 
@@ -1127,18 +1166,34 @@ function renderMiniCharts() {
         let structData = [];
         let structColors = [];
 
-        if (curInc > 0) {
-            structLabels = ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'];
-            structData = [curExp, curInc, curBal];
-            structColors = ['#f43f5e', '#10b981', '#06b6d4'];
-        } else if (curExp > 0) {
-            structLabels = ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
-            structData = [curExp, curBal];
-            structColors = ['#f43f5e', '#06b6d4'];
+        if (curBal < 0) {
+            if (curInc > 0) {
+                structLabels = ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Quỹ Thâm Hụt (Âm)'];
+                structData = [curExp, curInc, Math.abs(curBal)];
+                structColors = ['#f43f5e', '#10b981', '#e11d48'];
+            } else if (curExp > 0) {
+                structLabels = ['Số Tiền Đã Chi', 'Quỹ Thâm Hụt (Âm)'];
+                structData = [curExp, Math.abs(curBal)];
+                structColors = ['#f43f5e', '#e11d48'];
+            } else {
+                structLabels = ['Quỹ Thâm Hụt (Âm)'];
+                structData = [Math.abs(curBal)];
+                structColors = ['#e11d48'];
+            }
         } else {
-            structLabels = ['Số Tiền Còn Lại'];
-            structData = [curBal];
-            structColors = ['#06b6d4'];
+            if (curInc > 0) {
+                structLabels = ['Số Tiền Đã Chi', 'Số Tiền Tăng', 'Số Tiền Còn Lại'];
+                structData = [curExp, curInc, curBal];
+                structColors = ['#f43f5e', '#10b981', '#06b6d4'];
+            } else if (curExp > 0) {
+                structLabels = ['Số Tiền Đã Chi', 'Số Tiền Còn Lại'];
+                structData = [curExp, curBal];
+                structColors = ['#f43f5e', '#06b6d4'];
+            } else {
+                structLabels = ['Số Tiền Còn Lại'];
+                structData = [curBal];
+                structColors = ['#06b6d4'];
+            }
         }
 
         miniStructureChart = new Chart(ctx2, {
@@ -1161,7 +1216,11 @@ function renderMiniCharts() {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (ctx) => `${ctx.label}: ${formatCurrency(ctx.parsed)}`
+                            label: (ctx) => {
+                                const isDeficit = curBal < 0 && ctx.dataIndex === structLabels.length - 1;
+                                const valStr = isDeficit ? `-${formatCurrency(ctx.parsed)}` : formatCurrency(ctx.parsed);
+                                return `${ctx.label}: ${valStr}`;
+                            }
                         }
                     }
                 }
@@ -1176,12 +1235,18 @@ function renderMiniCharts() {
     }
     const badgeDisbursementRate = document.getElementById('badgeDisbursementRate');
     if (badgeDisbursementRate) {
-        if (activeMonthData.income > 0) {
+        if (curBal < 0) {
+            badgeDisbursementRate.className = 'mini-badge-tag badge-rose';
+            badgeDisbursementRate.textContent = `Âm quỹ: ${formatCurrency(curBal)}`;
+        } else if (activeMonthData.income > 0) {
+            badgeDisbursementRate.className = 'mini-badge-tag badge-blue';
             const pct = ((activeMonthData.expense / activeMonthData.income) * 100).toFixed(1);
             badgeDisbursementRate.textContent = `Giải ngân: ${pct}%`;
         } else if (activeMonthData.expense > 0) {
+            badgeDisbursementRate.className = 'mini-badge-tag badge-blue';
             badgeDisbursementRate.textContent = `Chi: ${formatCurrency(activeMonthData.expense)}`;
         } else {
+            badgeDisbursementRate.className = 'mini-badge-tag badge-blue';
             badgeDisbursementRate.textContent = `Chưa chi tiêu (0%)`;
         }
     }
@@ -1191,7 +1256,12 @@ function renderMiniCharts() {
     }
     const miniFooterDisbursement = document.getElementById('miniFooterDisbursement');
     if (miniFooterDisbursement) {
-        miniFooterDisbursement.textContent = `Tồn quỹ: ${formatCurrency(activeMonthData.balance || latestRemainingBalance)}`;
+        const balToDisplay = (activeMonthData.balance !== undefined && activeMonthData.balance !== null) ? activeMonthData.balance : latestRemainingBalance;
+        if (balToDisplay < 0) {
+            miniFooterDisbursement.innerHTML = `<span style="color:#e11d48; font-weight:700;"><i class="fa-solid fa-triangle-exclamation"></i> Thâm hụt: ${formatCurrency(balToDisplay)}</span>`;
+        } else {
+            miniFooterDisbursement.textContent = `Tồn quỹ: ${formatCurrency(balToDisplay)}`;
+        }
     }
 }
 
@@ -1258,7 +1328,7 @@ function renderMonthlyReportTable() {
                 <td><span class="pill-badge ${row.income > 0 ? 'pill-green' : 'pill-gray'}">${formatCurrency(row.income)}</span></td>
                 <td><span class="pill-badge ${row.expense > 0 ? 'pill-rose' : 'pill-gray'}">${formatCurrency(row.expense)}</span></td>
                 <td>${netPill}</td>
-                <td><strong class="text-balance-metric">${formatCurrency(row.balance)}</strong></td>
+                <td><strong class="${row.balance < 0 ? 'text-rose-metric' : 'text-balance-metric'}">${formatCurrency(row.balance)}</strong></td>
                 <td><strong>${rateStr}</strong></td>
                 <td>${statusPill}</td>
             </tr>
@@ -1275,8 +1345,8 @@ function renderMonthlyReportTable() {
         const sign = netTotal >= 0 ? '+' : '';
         footTotalNetEl.innerHTML = `<strong>${sign}${formatCurrency(netTotal)}</strong>`;
     }
-    // SỐ TIỀN CÒN LẠI CUỐI KỲ: LẤY ĐÚNG SỐ LIỆU CUỐI CÙNG
-    if (footTotalBalanceEl) footTotalBalanceEl.innerHTML = `<strong>${formatCurrency(latestRemainingBalance)}</strong>`;
+    // SỐ TIỀN CÒN LẠI CUỐI KỲ: LẤY ĐÚNG SỐ LIỆU CUỐI CÙNG (HỖ TRỢ SỐ ÂM)
+    if (footTotalBalanceEl) footTotalBalanceEl.innerHTML = `<strong class="${latestRemainingBalance < 0 ? 'text-rose-metric' : 'text-balance-metric'}">${formatCurrency(latestRemainingBalance)}</strong>`;
     if (footAvgRateEl) footAvgRateEl.innerHTML = `<strong>Chi từ quỹ</strong>`;
 }
 
@@ -1426,7 +1496,7 @@ function renderTransactionsTable() {
                         ${tx.income > 0 ? `<span class="pill-badge pill-income">+ ${formatCurrency(tx.income)}</span>` : `<span class="pill-badge pill-gray">0 ₫</span>`}
                     </td>
                     <td style="text-align: right;">
-                        <strong class="text-balance-metric" style="font-size: 13.5px;">${formatCurrency(tx.balance)}</strong>
+                        <strong class="${tx.balance < 0 ? 'text-rose-metric' : 'text-balance-metric'}" style="font-size: 13.5px;">${formatCurrency(tx.balance)}</strong>
                         ${isLastRow ? '<span class="pill-badge pill-current-month" style="margin-left: 6px; font-size: 10px;">Cuối cùng</span>' : ''}
                     </td>
                     <td>
@@ -1635,8 +1705,9 @@ function updateModalPreview() {
     const formulaRuleDesc = document.getElementById('formulaRuleDesc');
 
     const isExpense = (type === 'expense');
-    const exp = isExpense ? amountVal : 0;
-    const inc = !isExpense ? amountVal : 0;
+    const absVal = Math.abs(amountVal);
+    const exp = isExpense ? absVal : 0;
+    const inc = !isExpense ? absVal : 0;
     const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
     const timeFormatted = getTransactionFormattedTime(dateVal);
     const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(exp)}` : `Thu tăng quỹ ${formatCurrency(inc)}`);
@@ -1661,9 +1732,9 @@ function updateModalPreview() {
     }
     if (formulaRuleDesc) {
         if (!isExpense) {
-            formulaRuleDesc.innerHTML = `Khoản <strong>TĂNG</strong>: Cột tăng = <span style="color:#059669; font-weight:700;">${formatCurrency(inc)}</span> | Cột chi = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} + ${formatCurrency(inc)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
+            formulaRuleDesc.innerHTML = `Khoản <strong>TĂNG</strong>: Cột tăng = <span style="color:#059669; font-weight:700;">${formatCurrency(inc)}</span> | Cột chi = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} + ${formatCurrency(inc)} = <strong style="color:${newBal < 0 ? '#e11d48' : '#0891b2'};">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
         } else {
-            formulaRuleDesc.innerHTML = `Khoản <strong>CHI</strong>: Cột chi = <span style="color:#e11d48; font-weight:700;">${formatCurrency(exp)}</span> | Cột tăng = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} - ${formatCurrency(exp)} = <strong style="color:#0891b2;">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
+            formulaRuleDesc.innerHTML = `Khoản <strong>CHI</strong>: Cột chi = <span style="color:#e11d48; font-weight:700;">${formatCurrency(exp)}</span> | Cột tăng = <strong>0 ₫</strong> | Cột còn lại = ${formatCurrency(latestRemainingBalance)} - ${formatCurrency(exp)} = <strong style="color:${newBal < 0 ? '#e11d48' : '#0891b2'};">${formatCurrency(newBal)}</strong> | Cột ghi chú = <em>"${escapeHtml(descVal)}"</em>`;
         }
     }
 }
@@ -1673,12 +1744,13 @@ function updateModalPreview() {
  */
 function handleAmountInput(e) {
     const input = e.target;
+    const isNeg = input.value.trim().startsWith('-');
     let raw = input.value.replace(/[^\d]/g, '');
     if (!raw) {
-        input.value = '';
+        input.value = isNeg ? '-' : '';
     } else {
         const num = parseInt(raw, 10);
-        input.value = num.toLocaleString('vi-VN');
+        input.value = (isNeg ? '-' : '') + num.toLocaleString('vi-VN');
     }
     updateModalPreview();
 }
@@ -1696,14 +1768,15 @@ function handleCopyRowToClipboard() {
     const dateVal = document.getElementById('inputDate')?.value;
     const descInput = document.getElementById('inputDescription');
 
-    if (!amountVal || amountVal <= 0) {
+    if (!amountVal || isNaN(amountVal) || amountVal === 0) {
         showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
         return;
     }
 
     const isExpense = (type === 'expense');
-    const exp = isExpense ? amountVal : 0;
-    const inc = !isExpense ? amountVal : 0;
+    const absVal = Math.abs(amountVal);
+    const exp = isExpense ? absVal : 0;
+    const inc = !isExpense ? absVal : 0;
     const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
     const timeFormatted = getTransactionFormattedTime(dateVal);
     const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(exp)}` : `Thu tăng quỹ ${formatCurrency(inc)}`);
@@ -1733,17 +1806,18 @@ function handleCopyAndOpenSheet() {
     const dateVal = document.getElementById('inputDate')?.value;
     const descInput = document.getElementById('inputDescription');
 
-    if (!amountVal || amountVal <= 0) {
+    if (!amountVal || isNaN(amountVal) || amountVal === 0) {
         showToast("Vui lòng nhập số tiền trước khi sao chép!", "warning");
         return;
     }
 
     const isExpense = (type === 'expense');
-    const exp = isExpense ? amountVal : '';
-    const inc = !isExpense ? amountVal : '';
-    const newBal = isExpense ? (latestRemainingBalance - amountVal) : (latestRemainingBalance + amountVal);
+    const absVal = Math.abs(amountVal);
+    const exp = isExpense ? absVal : '';
+    const inc = !isExpense ? absVal : '';
+    const newBal = isExpense ? (latestRemainingBalance - absVal) : (latestRemainingBalance + absVal);
     const timeFormatted = getTransactionFormattedTime(dateVal);
-    const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(amountVal)}` : `Thu tăng quỹ ${formatCurrency(amountVal)}`);
+    const descVal = (descInput?.value || '').trim() || (isExpense ? `Chi thanh toán ${formatCurrency(absVal)}` : `Thu tăng quỹ ${formatCurrency(absVal)}`);
 
     // Chuẩn 5 cột Google Sheet
     const tsvLine = `${exp}\t${inc}\t${newBal}\t${timeFormatted}\t${descVal}`;
@@ -2029,8 +2103,8 @@ function handleSaveNewTransaction() {
     const dateVal = document.getElementById('inputDate')?.value;
 
     const amount = cleanMoneyToNumber(amountStr);
-    if (!amount || amount <= 0) {
-        showToast("Vui lòng nhập số tiền hợp lệ (> 0 VNĐ)!", "warning");
+    if (!amount || isNaN(amount) || amount === 0) {
+        showToast("Vui lòng nhập số tiền hợp lệ (khác 0 VNĐ)!", "warning");
         if (amountInput) amountInput.focus();
         return;
     }
@@ -2052,10 +2126,11 @@ function handleSaveNewTransaction() {
     // QUY TẮC CHÍNH XÁC THEO YÊU CẦU:
     // Nếu là tăng: Số tiền ghi vào cột tăng, cột số tiền còn lại = số tiền còn lại + số tiền tăng, cột chi = 0
     // Nếu là chi: Số tiền ghi vào cột chi, cột số tiền còn lại = số tiền còn lại - số tiền chi, cột tăng = 0
-    // Ngày giờ là thời gian thêm hàng mới
+    // Tính tiếp chuẩn xác từ số âm / thâm hụt: newBal = latestRemainingBalance - exp (hoặc + inc)
     const isExpense = (type === 'expense');
-    const exp = isExpense ? amount : 0;
-    const inc = !isExpense ? amount : 0;
+    const absVal = Math.abs(amount);
+    const exp = isExpense ? absVal : 0;
+    const inc = !isExpense ? absVal : 0;
     const newBal = isExpense ? (latestRemainingBalance - exp) : (latestRemainingBalance + inc);
     const timeFormatted = getTransactionFormattedTime(dateVal);
 
@@ -2160,7 +2235,10 @@ window.openPostAddSyncModal = function(tx, newBal) {
             amountEl.textContent = `${isExpense ? '-' : '+'} ${formatCurrency(amt)}`;
             amountEl.className = isExpense ? 'text-rose' : 'text-emerald';
         }
-        if (balEl) balEl.textContent = formatCurrency(newBal);
+        if (balEl) {
+            balEl.textContent = formatCurrency(newBal);
+            balEl.className = newBal < 0 ? 'text-rose-metric' : 'text-blue';
+        }
         if (timeEl) timeEl.textContent = tx.time;
     }
 };
